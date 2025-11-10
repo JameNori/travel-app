@@ -1,0 +1,39 @@
+package com.jamenori.travel.travel_backend.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import java.time.Instant;
+import java.util.List;
+
+/**
+ * Entity สำหรับเก็บข้อมูลผู้ใช้ (users)
+ */
+@Entity
+@Table(name = "users")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class User {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true, length = 255)
+    private String email;
+
+    @Column(name = "password_hash", nullable = false, columnDefinition = "TEXT")
+    private String passwordHash;
+
+    @Column(name = "display_name", length = 100)
+    private String displayName;
+
+    @Column(name = "created_at", columnDefinition = "TIMESTAMPTZ DEFAULT NOW()")
+    private Instant createdAt;
+
+    // ความสัมพันธ์: 1 ผู้ใช้มีหลายทริป
+    @OneToMany(mappedBy = "author", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Trip> trips;
+}
+
