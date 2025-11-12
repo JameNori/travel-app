@@ -18,59 +18,74 @@ import org.springframework.security.web.firewall.HttpFirewall;
 import org.springframework.security.web.firewall.StrictHttpFirewall;
 
 /**
- * ✅ คลาสนี้เป็นส่วนของการตั้งค่า Spring Security หลักของระบบ
- * โดยจะกำหนดกฎการเข้าถึง API, การใช้ JWT, และ Session Policy ทั้งหมด
+ * ✅ SecurityConfig
+ * คลาสนี้เป็นส่วนของการตั้งค่า Spring Security หลักของระบบ
+ *
+ * 🔹 หน้าที่:
+ *  - กำหนดการเข้าถึง API (Public / Protected)
+ *  - ตั้งค่า JWT Filter
+ *  - ปิด Session state (ใช้ JWT แบบ stateless)
  */
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity // ✅ ให้ Controller ใช้ SecurityContext ได้ (เช่น @PreAuthorize)
+@EnableMethodSecurity // ✅ อนุญาตให้ใช้ annotation @PreAuthorize ได้ใน Controller
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    // ✅ ตัวกรอง JWT ที่เราสร้างเอง (ใช้ตรวจ token ทุกครั้งก่อนเข้าถึง API)
+    // ✅ ตัวกรอง JWT ที่เราสร้างเอง (ใช้ตรวจ token ก่อนเข้าถึง API ทุกครั้ง)
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     /**
-     * ✅ กำหนด Security Filter Chain หลักของระบบ
-     * คือโครงสร้างลำดับการตรวจสอบ request ก่อนถึง Controller จริง
+     * ✅ Security Filter Chain — กำหนดลำดับการตรวจสอบ Request ก่อนถึง Controller
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        System.out.println("[DEBUG] SecurityConfig is loaded ✅");
+        System.out.println("[DEBUG] SecurityConfig loaded ✅");
         System.out.println("[DEBUG] Registering JwtAuthenticationFilter into Security Chain...");
 
         http
-            // ✅ ปิดการใช้ CSRF (Cross Site Request Forgery)
-            // เพราะเราใช้ JWT แบบ stateless อยู่แล้ว ไม่ใช้ session cookies
+            // ✅ ปิดการใช้ CSRF เพราะเราใช้ JWT แบบ Stateless
             .csrf(csrf -> csrf.disable())
 
-            // ✅ ตั้งค่าให้ระบบไม่สร้าง session ฝั่ง server
-            // เพราะ JWT จะถูกตรวจสอบทุกครั้ง ไม่ต้องเก็บ session state
+            // ✅ ไม่ให้ Spring สร้าง Session เพราะเราจะตรวจ JWT ทุกครั้ง
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-            // ✅ ตั้งค่า rule ของการเข้าถึง API (Authorization Rules)
+            // ✅ กำหนด Authorization Rule ของ API
             .authorizeHttpRequests(auth -> auth
-                // ✅ ปล่อยให้ endpoint สำหรับ Register และ Login ใช้ได้โดยไม่ต้องมี token
+
+                // -------------------------------
+                // 🌍 Public Endpoints (ไม่ต้องแนบ Token)
+                // -------------------------------
+                // ✅ Auth API (Register/Login)
                 .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
 
-                // ✅ อนุญาตให้ OPTIONS method ผ่านได้ (จำเป็นสำหรับ CORS preflight request จาก frontend)
+                // ✅ Trip API (อ่านข้อมูลทริปได้แบบสาธารณะ)
+                .requestMatchers("/api/trips", "/api/trips/**").permitAll()
+
+                // ✅ อนุญาต OPTIONS (CORS preflight)
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
 
-                // 🔒 ส่วนอื่น ๆ ของระบบ ต้องแนบ JWT ที่ถูกต้องถึงจะเข้าได้
+                // -------------------------------
+                // 🔒 Protected Endpoints (ต้องแนบ Token)
+                // -------------------------------
+                // ✅ เพิ่ม /api/trips/mine, POST, PUT, DELETE ให้ต้อง Authenticated
+                .requestMatchers("/api/trips/mine").authenticated()
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/trips/**").authenticated()
+                .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/trips/**").authenticated()
+                .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/trips/**").authenticated()
+
+                // ✅ Endpoints อื่น ๆ ทั้งหมด ต้อง Authenticated เช่นกัน
                 .anyRequest().authenticated()
             )
 
-            // ✅ ใส่ตัวกรอง JwtAuthenticationFilter ก่อน UsernamePasswordAuthenticationFilter
-            // เพื่อให้ token ถูกตรวจสอบก่อนเข้าสู่การยืนยันตัวตนของ Spring
+            // ✅ เพิ่ม JWT Filter ก่อน UsernamePasswordAuthenticationFilter
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-        // ✅ สุดท้าย สร้างและคืนค่า SecurityFilterChain ให้ Spring ใช้งาน
         return http.build();
     }
 
     /**
-     * ✅ PasswordEncoder ใช้เข้ารหัส password ก่อนบันทึกลง database
-     * BCrypt เป็น algorithm ที่นิยมและปลอดภัย
+     * ✅ PasswordEncoder — ใช้เข้ารหัส password ก่อนบันทึกใน Database
      */
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -78,8 +93,7 @@ public class SecurityConfig {
     }
 
     /**
-     * ✅ AuthenticationManager คือ class กลางที่ใช้ในการตรวจสอบ username/password
-     * โดยจะถูกเรียกใช้ใน AuthService ตอน login
+     * ✅ AuthenticationManager — ใช้ตรวจสอบ username/password ตอน Login
      */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
@@ -87,8 +101,7 @@ public class SecurityConfig {
     }
 
     /**
-     * ✅ ปรับ Firewall ของ Spring Security ให้อนุญาตบางอักขระพิเศษใน URL ได้
-     * เช่น // , ; , \ (ใช้ในบาง endpoint หรือ URL ที่มี encoding แปลก ๆ)
+     * ✅ ปรับ Firewall — อนุญาตบางอักขระพิเศษใน URL ได้ เช่น //, ;, \
      */
     @Bean
     public HttpFirewall allowUrlEncodedHttpFirewall() {
