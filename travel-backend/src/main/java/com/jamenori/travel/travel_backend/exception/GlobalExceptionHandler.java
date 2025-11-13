@@ -3,8 +3,11 @@ package com.jamenori.travel.travel_backend.exception;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -12,74 +15,93 @@ import java.util.Map;
 /**
  * ✅ Global Exception Handler
  *
- * ใช้รวมศูนย์การจัดการ Error ที่เกิดขึ้นในระบบ
- * เช่น Validation fail, IllegalArgumentException, Unauthorized, หรือ error ทั่วไป
- *
- * แทนที่ระบบจะส่ง Stack Trace ออกไป (ซึ่งไม่เหมาะกับ production)
- * เราจะจัดรูปแบบให้เป็น JSON ที่อ่านง่ายเพื่อให้ frontend แสดงผลได้สะดวก
+ * รวมศูนย์การจัดการ Error ที่เกิดขึ้นในระบบ
+ * ส่ง response เป็น JSON ที่อ่านง่ายให้ frontend แสดงผลได้สะดวก
  *
  * 📦 ตัวอย่าง response ที่ frontend จะได้รับ:
  * {
- *   "message": "Validation failed",
- *   "errors": { "email": "must not be blank" }
+ *   "error": "Validation failed",
+ *   "details": { "email": "must not be blank" },
+ *   "path": "/api/auth/register"
  * }
  */
-@RestControllerAdvice // ✅ บอก Spring ให้ class นี้ดัก Exception จากทุก Controller
+@RestControllerAdvice
 public class GlobalExceptionHandler {
 
     /**
      * 🔸 Validation Error — ดักจับ error จาก @Valid / @NotBlank / @Size
-     * เช่น input จาก frontend ไม่ผ่าน validation rule
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
-        // ✅ รวม error จากทุก field ที่ validate ไม่ผ่าน
+    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex, WebRequest request) {
         Map<String, String> fieldErrors = new HashMap<>();
         ex.getBindingResult().getFieldErrors()
                 .forEach(err -> fieldErrors.put(err.getField(), err.getDefaultMessage()));
 
-        // ✅ สร้าง response body
         Map<String, Object> body = new HashMap<>();
-        body.put("message", "Validation failed");
-        body.put("errors", fieldErrors);
+        body.put("error", "Validation failed");
+        body.put("details", fieldErrors);
+        body.put("path", request.getDescription(false));
 
-        // ✅ ส่งกลับ HTTP 400 (Bad Request)
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     /**
-     * 🔸 IllegalArgumentException — ใช้สำหรับ error ที่โยนจาก AuthService หรือ Business Logic
-     * เช่น email ซ้ำ, password ไม่ถูกต้อง
+     * 🔸 Missing Multipart File — กรณีไม่ส่งไฟล์มาใน request (เช่น key 'file' หาย)
+     */
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<Map<String, Object>> handleMissingFile(MissingServletRequestPartException ex, WebRequest request) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", "400 BAD_REQUEST");
+        body.put("details", "Missing required file part: " + ex.getRequestPartName());
+        body.put("path", request.getDescription(false));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    /**
+     * 🔸 IllegalArgumentException — เช่น email ซ้ำ, password ไม่ถูกต้อง
      */
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
+    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex, WebRequest request) {
         Map<String, Object> body = new HashMap<>();
-        body.put("error", ex.getMessage());
+        body.put("error", "Invalid input");
+        body.put("details", ex.getMessage());
+        body.put("path", request.getDescription(false));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     /**
-     * 🔸 SecurityException — ใช้สำหรับกรณี unauthorized (401)
-     * เช่น JWT ไม่ถูกต้อง, ไม่มีสิทธิ์เข้าถึง resource
+     * 🔸 ResponseStatusException — ใช้ใน service layer (เช่น SupabaseStorageService)
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatus(ResponseStatusException ex, WebRequest request) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", ex.getStatusCode().toString());
+        body.put("details", ex.getReason());
+        body.put("path", request.getDescription(false));
+        return ResponseEntity.status(ex.getStatusCode()).body(body);
+    }
+
+    /**
+     * 🔸 SecurityException — กรณี unauthorized (401)
      */
     @ExceptionHandler(SecurityException.class)
-    public ResponseEntity<Map<String, Object>> handleUnauthorized(SecurityException ex) {
+    public ResponseEntity<Map<String, Object>> handleUnauthorized(SecurityException ex, WebRequest request) {
         Map<String, Object> body = new HashMap<>();
         body.put("error", "Unauthorized");
         body.put("details", ex.getMessage());
+        body.put("path", request.getDescription(false));
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
     }
 
     /**
-     * 🔸 Fallback — ใช้สำหรับ Exception อื่น ๆ ที่ไม่ได้ handle ไว้ข้างต้น
-     * เช่น NullPointerException, Database error, หรือ Unexpected error
+     * 🔸 Fallback — สำหรับ Exception อื่น ๆ ที่ไม่ได้ handle
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneral(Exception ex, WebRequest request) {
         Map<String, Object> body = new HashMap<>();
         body.put("error", "Internal server error");
         body.put("details", ex.getMessage());
-        body.put("path", request.getDescription(false)); // ✅ แสดง path ที่เกิด error
+        body.put("path", request.getDescription(false));
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 }
