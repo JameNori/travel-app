@@ -4,6 +4,7 @@ import com.jamenori.travel.travel_backend.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -18,59 +19,83 @@ import org.springframework.security.web.firewall.HttpFirewall;
 import org.springframework.security.web.firewall.StrictHttpFirewall;
 
 /**
- * ✅ คลาสนี้เป็นส่วนของการตั้งค่า Spring Security หลักของระบบ
- * โดยจะกำหนดกฎการเข้าถึง API, การใช้ JWT, และ Session Policy ทั้งหมด
+ * SecurityConfig
+ *
+ * คลาสนี้ใช้กำหนดการตั้งค่าทั้งหมดของ Spring Security ในระบบ
+ * จุดประสงค์หลักของคลาสนี้:
+ *
+ * 1. กำหนดว่า Endpoint ไหนเข้าถึงได้โดยไม่ต้องมี JWT (public)
+ * 2. กำหนดว่า Endpoint ไหนต้องมี JWT (protected)
+ * 3. ปิดการใช้ Session เพราะระบบใช้ JWT แบบ Stateless
+ * 4. เพิ่ม JwtAuthenticationFilter ก่อนเข้าสู่ Controller
  */
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity // ✅ ให้ Controller ใช้ SecurityContext ได้ (เช่น @PreAuthorize)
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    // ✅ ตัวกรอง JWT ที่เราสร้างเอง (ใช้ตรวจ token ทุกครั้งก่อนเข้าถึง API)
+    // Filter ที่ใช้ตรวจสอบความถูกต้องของ JWT ทุก request
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     /**
-     * ✅ กำหนด Security Filter Chain หลักของระบบ
-     * คือโครงสร้างลำดับการตรวจสอบ request ก่อนถึง Controller จริง
+     * Security Filter Chain
+     * เมธอดหลักที่กำหนดการเข้าถึงของทุก API ในระบบ
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        System.out.println("[DEBUG] SecurityConfig is loaded ✅");
-        System.out.println("[DEBUG] Registering JwtAuthenticationFilter into Security Chain...");
+        System.out.println("[DEBUG] SecurityConfig loaded.");
 
         http
-            // ✅ ปิดการใช้ CSRF (Cross Site Request Forgery)
-            // เพราะเราใช้ JWT แบบ stateless อยู่แล้ว ไม่ใช้ session cookies
+            // ปิด CSRF เนื่องจากใช้ JWT แทน Cookie
             .csrf(csrf -> csrf.disable())
 
-            // ✅ ตั้งค่าให้ระบบไม่สร้าง session ฝั่ง server
-            // เพราะ JWT จะถูกตรวจสอบทุกครั้ง ไม่ต้องเก็บ session state
+            // ตั้งค่าให้ระบบทำงานแบบ Stateless (ไม่สร้าง session)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-            // ✅ ตั้งค่า rule ของการเข้าถึง API (Authorization Rules)
+            // กำหนด Authorization rules
             .authorizeHttpRequests(auth -> auth
-                // ✅ ปล่อยให้ endpoint สำหรับ Register และ Login ใช้ได้โดยไม่ต้องมี token
+
+                // -----------------------------------------------------
+                // Public endpoints (ไม่ต้องส่ง JWT)
+                // -----------------------------------------------------
+
+                // สมัครสมาชิก / ล็อกอิน
                 .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
 
-                // ✅ อนุญาตให้ OPTIONS method ผ่านได้ (จำเป็นสำหรับ CORS preflight request จาก frontend)
-                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                // ดึงรายการทริปทั้งหมด และอ่านทริปรายตัว (GET เท่านั้น)
+                .requestMatchers(HttpMethod.GET, "/api/trips", "/api/trips/**").permitAll()
 
-                // 🔒 ส่วนอื่น ๆ ของระบบ ต้องแนบ JWT ที่ถูกต้องถึงจะเข้าได้
+                // อนุญาต OPTIONS (สำหรับ CORS preflight)
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                // -----------------------------------------------------
+                // Protected endpoints (ต้องมี JWT)
+                // -----------------------------------------------------
+
+                // ดึงทริปที่ user เป็นเจ้าของ
+                .requestMatchers("/api/trips/mine").authenticated()
+
+                // การสร้าง / แก้ไข / ลบ ทริป
+                .requestMatchers(HttpMethod.POST, "/api/trips/**").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/trips/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/trips/**").authenticated()
+
+                // upload รูป ต้องใช้ token เช่นกัน
+                .requestMatchers(HttpMethod.POST, "/api/files/upload").authenticated()
+
+                // default: endpoint อื่นทั้งหมดต้องตรวจสอบ JWT
                 .anyRequest().authenticated()
             )
 
-            // ✅ ใส่ตัวกรอง JwtAuthenticationFilter ก่อน UsernamePasswordAuthenticationFilter
-            // เพื่อให้ token ถูกตรวจสอบก่อนเข้าสู่การยืนยันตัวตนของ Spring
+            // เพิ่ม JWT Filter ก่อน UsernamePasswordAuthenticationFilter
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-        // ✅ สุดท้าย สร้างและคืนค่า SecurityFilterChain ให้ Spring ใช้งาน
         return http.build();
     }
 
     /**
-     * ✅ PasswordEncoder ใช้เข้ารหัส password ก่อนบันทึกลง database
-     * BCrypt เป็น algorithm ที่นิยมและปลอดภัย
+     * PasswordEncoder — ใช้เข้ารหัสรหัสผ่านก่อนบันทึกลงฐานข้อมูล
      */
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -78,8 +103,7 @@ public class SecurityConfig {
     }
 
     /**
-     * ✅ AuthenticationManager คือ class กลางที่ใช้ในการตรวจสอบ username/password
-     * โดยจะถูกเรียกใช้ใน AuthService ตอน login
+     * AuthenticationManager — ใช้โดย AuthService ในการตรวจสอบ email/password
      */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
@@ -87,8 +111,7 @@ public class SecurityConfig {
     }
 
     /**
-     * ✅ ปรับ Firewall ของ Spring Security ให้อนุญาตบางอักขระพิเศษใน URL ได้
-     * เช่น // , ; , \ (ใช้ในบาง endpoint หรือ URL ที่มี encoding แปลก ๆ)
+     * ปรับ Firewall เพื่ออนุญาตอักขระพิเศษใน URL
      */
     @Bean
     public HttpFirewall allowUrlEncodedHttpFirewall() {

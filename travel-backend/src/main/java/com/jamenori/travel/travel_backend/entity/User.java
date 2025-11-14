@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.Instant;
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
  * Entity สำหรับเก็บข้อมูลผู้ใช้ (users)
@@ -34,6 +35,7 @@ public class User {
 
     // ความสัมพันธ์: 1 ผู้ใช้มีหลายทริป
     @OneToMany(mappedBy = "author", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore // ✅ ป้องกันไม่ให้เกิด loop ตอนแปลง JSON
     private List<Trip> trips;
 }
 
