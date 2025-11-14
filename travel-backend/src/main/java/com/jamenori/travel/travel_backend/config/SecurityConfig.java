@@ -18,58 +18,101 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.web.firewall.HttpFirewall;
 import org.springframework.security.web.firewall.StrictHttpFirewall;
 
+/**
+ * SecurityConfig
+ *
+ * คลาสนี้ใช้กำหนดการตั้งค่าทั้งหมดของ Spring Security ในระบบ
+ * จุดประสงค์หลักของคลาสนี้:
+ *
+ * 1. กำหนดว่า Endpoint ไหนเข้าถึงได้โดยไม่ต้องมี JWT (public)
+ * 2. กำหนดว่า Endpoint ไหนต้องมี JWT (protected)
+ * 3. ปิดการใช้ Session เพราะระบบใช้ JWT แบบ Stateless
+ * 4. เพิ่ม JwtAuthenticationFilter ก่อนเข้าสู่ Controller
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+    // Filter ที่ใช้ตรวจสอบความถูกต้องของ JWT ทุก request
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    /**
+     * Security Filter Chain
+     * เมธอดหลักที่กำหนดการเข้าถึงของทุก API ในระบบ
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        System.out.println("[DEBUG] SecurityConfig loaded ✅");
+        System.out.println("[DEBUG] SecurityConfig loaded.");
 
         http
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        // -------------------------------
-                        // 🌍 Public endpoints
-                        // -------------------------------
-                        .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/trips", "/api/trips/**").permitAll()
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+            // ปิด CSRF เนื่องจากใช้ JWT แทน Cookie
+            .csrf(csrf -> csrf.disable())
 
-                        // -------------------------------
-                        // 🔒 Protected endpoints
-                        // -------------------------------
-                        .requestMatchers("/api/trips/mine").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/trips/**").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/trips/**").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/trips/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/files/upload").authenticated()
+            // ตั้งค่าให้ระบบทำงานแบบ Stateless (ไม่สร้าง session)
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                        // -------------------------------
-                        // Default rule
-                        // -------------------------------
-                        .anyRequest().authenticated()
-                )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            // กำหนด Authorization rules
+            .authorizeHttpRequests(auth -> auth
+
+                // -----------------------------------------------------
+                // Public endpoints (ไม่ต้องส่ง JWT)
+                // -----------------------------------------------------
+
+                // สมัครสมาชิก / ล็อกอิน
+                .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+
+                // ดึงรายการทริปทั้งหมด และอ่านทริปรายตัว (GET เท่านั้น)
+                .requestMatchers(HttpMethod.GET, "/api/trips", "/api/trips/**").permitAll()
+
+                // อนุญาต OPTIONS (สำหรับ CORS preflight)
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                // -----------------------------------------------------
+                // Protected endpoints (ต้องมี JWT)
+                // -----------------------------------------------------
+
+                // ดึงทริปที่ user เป็นเจ้าของ
+                .requestMatchers("/api/trips/mine").authenticated()
+
+                // การสร้าง / แก้ไข / ลบ ทริป
+                .requestMatchers(HttpMethod.POST, "/api/trips/**").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/trips/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/trips/**").authenticated()
+
+                // upload รูป ต้องใช้ token เช่นกัน
+                .requestMatchers(HttpMethod.POST, "/api/files/upload").authenticated()
+
+                // default: endpoint อื่นทั้งหมดต้องตรวจสอบ JWT
+                .anyRequest().authenticated()
+            )
+
+            // เพิ่ม JWT Filter ก่อน UsernamePasswordAuthenticationFilter
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
+    /**
+     * PasswordEncoder — ใช้เข้ารหัสรหัสผ่านก่อนบันทึกลงฐานข้อมูล
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * AuthenticationManager — ใช้โดย AuthService ในการตรวจสอบ email/password
+     */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
+    /**
+     * ปรับ Firewall เพื่ออนุญาตอักขระพิเศษใน URL
+     */
     @Bean
     public HttpFirewall allowUrlEncodedHttpFirewall() {
         StrictHttpFirewall firewall = new StrictHttpFirewall();
