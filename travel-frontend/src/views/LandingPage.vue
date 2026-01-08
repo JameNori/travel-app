@@ -10,11 +10,15 @@
     <div v-else class="auth-info">
       <p>Status: Not logged in</p>
     </div>
+
+    <!-- Test Component -->
+    <TestApiClient />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useAuthStore } from "../stores/auth";
+import TestApiClient from "../components/TestApiClient.vue";
 
 const authStore = useAuthStore();
 </script>
