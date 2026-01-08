@@ -1,11 +1,7 @@
 // src/api/api.js
-import axios from "axios";
-
-// สร้าง axios instance กลางเพื่อ reuse configuration และ interceptor
-// baseURL จาก env เพื่อแยก config ระหว่าง dev/prod
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
-});
+// ไฟล์นี้จะถูกย้ายไป trip.js
+// ตอนนี้ใช้ client.ts เป็น axios instance กลาง
+import api from "./client";
 
 // getTrips return [] แทน throw เพื่อให้ UI ไม่ break เมื่อ API error (UX: แสดง empty state)
 export async function getTrips() {
