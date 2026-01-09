@@ -41,12 +41,65 @@
       <button @click="test401Response">Test 401 Handling</button>
       <pre v-if="error401Result">{{ error401Result }}</pre>
     </div>
+
+    <div class="test-section">
+      <h4>5. Auth API Test</h4>
+      <div class="auth-test-controls">
+        <div class="auth-form">
+          <h5>Login</h5>
+          <input
+            v-model="loginEmail"
+            type="email"
+            placeholder="Email"
+            class="auth-input"
+          />
+          <input
+            v-model="loginPassword"
+            type="password"
+            placeholder="Password"
+            class="auth-input"
+          />
+          <button @click="testLogin">Test Login</button>
+        </div>
+
+        <div class="auth-form">
+          <h5>Register</h5>
+          <input
+            v-model="registerEmail"
+            type="email"
+            placeholder="Email"
+            class="auth-input"
+          />
+          <input
+            v-model="registerPassword"
+            type="password"
+            placeholder="Password"
+            class="auth-input"
+          />
+          <input
+            v-model="registerDisplayName"
+            type="text"
+            placeholder="Display Name"
+            class="auth-input"
+          />
+          <button @click="testRegister">Test Register</button>
+        </div>
+
+        <div class="auth-form">
+          <h5>Other Actions</h5>
+          <button @click="testLogout">Test Logout</button>
+          <button @click="testFetchProfile">Test Fetch Profile</button>
+        </div>
+      </div>
+      <pre v-if="authResult">{{ authResult }}</pre>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from "vue";
 import api from "../api/client";
+import { useAuthStore } from "../stores/auth";
 
 const baseURLResult = ref<string | null>(null);
 const testToken = ref("");
@@ -54,6 +107,15 @@ const currentToken = ref<string | null>(null);
 const apiResult = ref<any>(null);
 const protectedApiResult = ref<any>(null);
 const error401Result = ref<any>(null);
+
+// Auth test
+const authStore = useAuthStore();
+const loginEmail = ref("");
+const loginPassword = ref("");
+const registerEmail = ref("");
+const registerPassword = ref("");
+const registerDisplayName = ref("");
+const authResult = ref<any>(null);
 
 function testBaseURL() {
   const baseURL = api.defaults.baseURL;
@@ -190,6 +252,143 @@ async function test401Response() {
 
 // อ่าน token ปัจจุบันเมื่อ component mount
 currentToken.value = localStorage.getItem("token");
+
+// Auth test functions
+async function testLogin() {
+  authResult.value = "Loading...";
+  try {
+    const response = await authStore.login(
+      loginEmail.value,
+      loginPassword.value
+    );
+    authResult.value = JSON.stringify(
+      {
+        success: true,
+        action: "login",
+        token: authStore.token ? "Stored" : "Missing",
+        user: authStore.user,
+        isAuthenticated: authStore.isAuthenticated,
+      },
+      null,
+      2
+    );
+    // อัปเดต current token display
+    currentToken.value = authStore.token;
+  } catch (error: any) {
+    authResult.value = JSON.stringify(
+      {
+        success: false,
+        action: "login",
+        error: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+      },
+      null,
+      2
+    );
+  }
+}
+
+async function testRegister() {
+  authResult.value = "Loading...";
+  try {
+    const response = await authStore.register(
+      registerEmail.value,
+      registerPassword.value,
+      registerDisplayName.value
+    );
+    authResult.value = JSON.stringify(
+      {
+        success: true,
+        action: "register",
+        token: authStore.token ? "Stored" : "Missing",
+        user: authStore.user,
+        isAuthenticated: authStore.isAuthenticated,
+      },
+      null,
+      2
+    );
+    // อัปเดต current token display
+    currentToken.value = authStore.token;
+  } catch (error: any) {
+    authResult.value = JSON.stringify(
+      {
+        success: false,
+        action: "register",
+        error: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+      },
+      null,
+      2
+    );
+  }
+}
+
+async function testLogout() {
+  authResult.value = "Loading...";
+  try {
+    await authStore.logout();
+    authResult.value = JSON.stringify(
+      {
+        success: true,
+        action: "logout",
+        token: authStore.token ? "Still exists" : "Cleared",
+        user: authStore.user ? "Still exists" : "Cleared",
+        isAuthenticated: authStore.isAuthenticated,
+      },
+      null,
+      2
+    );
+    // อัปเดต current token display
+    currentToken.value = null;
+  } catch (error: any) {
+    authResult.value = JSON.stringify(
+      {
+        success: false,
+        action: "logout",
+        error: error.message,
+      },
+      null,
+      2
+    );
+  }
+}
+
+async function testFetchProfile() {
+  authResult.value = "Loading...";
+  try {
+    const profile = await authStore.fetchProfile();
+    authResult.value = JSON.stringify(
+      {
+        success: true,
+        action: "fetchProfile",
+        profile: profile,
+        currentUser: authStore.user,
+        isAuthenticated: authStore.isAuthenticated,
+      },
+      null,
+      2
+    );
+  } catch (error: any) {
+    authResult.value = JSON.stringify(
+      {
+        success: false,
+        action: "fetchProfile",
+        error: error.message,
+        status: error.response?.status,
+        note:
+          error.response?.status === 401 || error.response?.status === 403
+            ? "Token expired/invalid - auto logged out"
+            : "Unexpected error",
+      },
+      null,
+      2
+    );
+    // อัปเดต current token display ถ้า token ถูก clear
+    currentToken.value = authStore.token;
+  }
+}
 </script>
 
 <style scoped>
@@ -255,6 +454,41 @@ pre {
   border-radius: 4px;
   overflow-x: auto;
   font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.auth-test-controls {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.auth-form {
+  flex: 1;
+  min-width: 200px;
+  padding: 1rem;
+  background: #f9f9f9;
+  border-radius: 4px;
+}
+
+.auth-form h5 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.auth-input {
+  width: 100%;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.auth-form button {
+  width: 100%;
   margin-top: 0.5rem;
 }
 </style>
