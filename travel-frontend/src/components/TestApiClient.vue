@@ -93,6 +93,116 @@
       </div>
       <pre v-if="authResult">{{ authResult }}</pre>
     </div>
+
+    <div class="test-section">
+      <h4>6. Trip API Test</h4>
+      <div class="trip-test-controls">
+        <div class="trip-form">
+          <h5>Get All Trips</h5>
+          <input
+            v-model="tripQuery"
+            type="text"
+            placeholder="Query (optional)"
+            class="trip-input"
+          />
+          <button @click="testGetAllTrips">Test GetAllTrips</button>
+        </div>
+
+        <div class="trip-form">
+          <h5>Get Trip By ID</h5>
+          <input
+            v-model="tripId"
+            type="number"
+            placeholder="Trip ID"
+            class="trip-input"
+          />
+          <button @click="testGetTripById">Test GetTripById</button>
+        </div>
+
+        <div class="trip-form">
+          <h5>Get My Trips</h5>
+          <button @click="testGetMyTrips">Test GetMyTrips</button>
+          <small>Requires authentication</small>
+        </div>
+
+        <div class="trip-form">
+          <h5>Create Trip</h5>
+          <input
+            v-model="createTripTitle"
+            type="text"
+            placeholder="Title"
+            class="trip-input"
+          />
+          <input
+            v-model="createTripDescription"
+            type="text"
+            placeholder="Description (optional)"
+            class="trip-input"
+          />
+          <input
+            v-model="createTripLatitude"
+            type="number"
+            step="0.000001"
+            placeholder="Latitude"
+            class="trip-input"
+          />
+          <input
+            v-model="createTripLongitude"
+            type="number"
+            step="0.000001"
+            placeholder="Longitude"
+            class="trip-input"
+          />
+          <button @click="testCreateTrip">Test CreateTrip</button>
+          <small>Requires authentication</small>
+        </div>
+
+        <div class="trip-form">
+          <h5>Update Trip</h5>
+          <input
+            v-model="updateTripId"
+            type="number"
+            placeholder="Trip ID"
+            class="trip-input"
+          />
+          <input
+            v-model="updateTripTitle"
+            type="text"
+            placeholder="New Title"
+            class="trip-input"
+          />
+          <input
+            v-model="updateTripLatitude"
+            type="number"
+            step="0.000001"
+            placeholder="Latitude"
+            class="trip-input"
+          />
+          <input
+            v-model="updateTripLongitude"
+            type="number"
+            step="0.000001"
+            placeholder="Longitude"
+            class="trip-input"
+          />
+          <button @click="testUpdateTrip">Test UpdateTrip</button>
+          <small>Requires authentication + ownership</small>
+        </div>
+
+        <div class="trip-form">
+          <h5>Delete Trip</h5>
+          <input
+            v-model="deleteTripId"
+            type="number"
+            placeholder="Trip ID"
+            class="trip-input"
+          />
+          <button @click="testDeleteTrip">Test DeleteTrip</button>
+          <small>Requires authentication + ownership</small>
+        </div>
+      </div>
+      <pre v-if="tripResult">{{ tripResult }}</pre>
+    </div>
   </div>
 </template>
 
@@ -100,6 +210,7 @@
 import { ref } from "vue";
 import api from "../api/client";
 import { useAuthStore } from "../stores/auth";
+import * as tripAPI from "../api/trip";
 
 const baseURLResult = ref<string | null>(null);
 const testToken = ref("");
@@ -116,6 +227,20 @@ const registerEmail = ref("");
 const registerPassword = ref("");
 const registerDisplayName = ref("");
 const authResult = ref<any>(null);
+
+// Trip test
+const tripQuery = ref("");
+const tripId = ref<number | null>(null);
+const tripResult = ref<any>(null);
+const createTripTitle = ref("");
+const createTripDescription = ref("");
+const createTripLatitude = ref<number | null>(null);
+const createTripLongitude = ref<number | null>(null);
+const updateTripId = ref<number | null>(null);
+const updateTripTitle = ref("");
+const updateTripLatitude = ref<number | null>(null);
+const updateTripLongitude = ref<number | null>(null);
+const deleteTripId = ref<number | null>(null);
 
 function testBaseURL() {
   const baseURL = api.defaults.baseURL;
@@ -389,6 +514,242 @@ async function testFetchProfile() {
     currentToken.value = authStore.token;
   }
 }
+
+// Trip test functions
+async function testGetAllTrips() {
+  tripResult.value = "Loading...";
+  try {
+    const trips = await tripAPI.getAllTrips(
+      tripQuery.value || undefined
+    );
+    tripResult.value = JSON.stringify(
+      {
+        success: true,
+        action: "getAllTrips",
+        query: tripQuery.value || "none",
+        count: trips.length,
+        trips: trips.slice(0, 3), // แสดงแค่ 3 ตัวแรก
+        note: trips.length > 3 ? `... and ${trips.length - 3} more` : "",
+      },
+      null,
+      2
+    );
+  } catch (error: any) {
+    tripResult.value = JSON.stringify(
+      {
+        success: false,
+        action: "getAllTrips",
+        error: error.message,
+        status: error.response?.status,
+      },
+      null,
+      2
+    );
+  }
+}
+
+async function testGetTripById() {
+  if (!tripId.value) {
+    tripResult.value = JSON.stringify(
+      { error: "Please enter a Trip ID" },
+      null,
+      2
+    );
+    return;
+  }
+  tripResult.value = "Loading...";
+  try {
+    const trip = await tripAPI.getTripById(tripId.value);
+    tripResult.value = JSON.stringify(
+      {
+        success: true,
+        action: "getTripById",
+        trip: trip,
+      },
+      null,
+      2
+    );
+  } catch (error: any) {
+    tripResult.value = JSON.stringify(
+      {
+        success: false,
+        action: "getTripById",
+        error: error.message,
+        status: error.response?.status,
+      },
+      null,
+      2
+    );
+  }
+}
+
+async function testGetMyTrips() {
+  tripResult.value = "Loading...";
+  try {
+    const trips = await tripAPI.getMyTrips();
+    tripResult.value = JSON.stringify(
+      {
+        success: true,
+        action: "getMyTrips",
+        count: trips.length,
+        trips: trips,
+      },
+      null,
+      2
+    );
+  } catch (error: any) {
+    tripResult.value = JSON.stringify(
+      {
+        success: false,
+        action: "getMyTrips",
+        error: error.message,
+        status: error.response?.status,
+        note:
+          error.response?.status === 401
+            ? "Requires authentication - please login first"
+            : "Unexpected error",
+      },
+      null,
+      2
+    );
+  }
+}
+
+async function testCreateTrip() {
+  if (!createTripTitle.value || !createTripLatitude.value || !createTripLongitude.value) {
+    tripResult.value = JSON.stringify(
+      { error: "Please fill in Title, Latitude, and Longitude" },
+      null,
+      2
+    );
+    return;
+  }
+  tripResult.value = "Loading...";
+  try {
+    const trip = await tripAPI.createTrip({
+      title: createTripTitle.value,
+      description: createTripDescription.value || undefined,
+      latitude: createTripLatitude.value,
+      longitude: createTripLongitude.value,
+    });
+    tripResult.value = JSON.stringify(
+      {
+        success: true,
+        action: "createTrip",
+        trip: trip,
+      },
+      null,
+      2
+    );
+    // Clear form
+    createTripTitle.value = "";
+    createTripDescription.value = "";
+    createTripLatitude.value = null;
+    createTripLongitude.value = null;
+  } catch (error: any) {
+    tripResult.value = JSON.stringify(
+      {
+        success: false,
+        action: "createTrip",
+        error: error.message,
+        status: error.response?.status,
+        note:
+          error.response?.status === 401
+            ? "Requires authentication - please login first"
+            : "Unexpected error",
+      },
+      null,
+      2
+    );
+  }
+}
+
+async function testUpdateTrip() {
+  if (!updateTripId.value || !updateTripTitle.value || !updateTripLatitude.value || !updateTripLongitude.value) {
+    tripResult.value = JSON.stringify(
+      { error: "Please fill in Trip ID, Title, Latitude, and Longitude" },
+      null,
+      2
+    );
+    return;
+  }
+  tripResult.value = "Loading...";
+  try {
+    const trip = await tripAPI.updateTrip(updateTripId.value, {
+      title: updateTripTitle.value,
+      latitude: updateTripLatitude.value,
+      longitude: updateTripLongitude.value,
+    });
+    tripResult.value = JSON.stringify(
+      {
+        success: true,
+        action: "updateTrip",
+        trip: trip,
+      },
+      null,
+      2
+    );
+  } catch (error: any) {
+    tripResult.value = JSON.stringify(
+      {
+        success: false,
+        action: "updateTrip",
+        error: error.message,
+        status: error.response?.status,
+        note:
+          error.response?.status === 401
+            ? "Requires authentication - please login first"
+            : error.response?.status === 403
+            ? "Requires ownership - you can only update your own trips"
+            : "Unexpected error",
+      },
+      null,
+      2
+    );
+  }
+}
+
+async function testDeleteTrip() {
+  if (!deleteTripId.value) {
+    tripResult.value = JSON.stringify(
+      { error: "Please enter a Trip ID" },
+      null,
+      2
+    );
+    return;
+  }
+  tripResult.value = "Loading...";
+  try {
+    await tripAPI.deleteTrip(deleteTripId.value);
+    tripResult.value = JSON.stringify(
+      {
+        success: true,
+        action: "deleteTrip",
+        message: `Trip ${deleteTripId.value} deleted successfully`,
+      },
+      null,
+      2
+    );
+    deleteTripId.value = null;
+  } catch (error: any) {
+    tripResult.value = JSON.stringify(
+      {
+        success: false,
+        action: "deleteTrip",
+        error: error.message,
+        status: error.response?.status,
+        note:
+          error.response?.status === 401
+            ? "Requires authentication - please login first"
+            : error.response?.status === 403
+            ? "Requires ownership - you can only delete your own trips"
+            : "Unexpected error",
+      },
+      null,
+      2
+    );
+  }
+}
 </script>
 
 <style scoped>
@@ -490,5 +851,47 @@ pre {
 .auth-form button {
   width: 100%;
   margin-top: 0.5rem;
+}
+
+.trip-test-controls {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.trip-form {
+  flex: 1;
+  min-width: 200px;
+  padding: 1rem;
+  background: #f9f9f9;
+  border-radius: 4px;
+}
+
+.trip-form h5 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.trip-input {
+  width: 100%;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.trip-form button {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.trip-form small {
+  display: block;
+  margin-top: 0.25rem;
+  color: #666;
+  font-size: 0.75rem;
 }
 </style>
