@@ -31,6 +31,9 @@ public class Trip {
     @Column(columnDefinition = "TEXT[]")
     private String[] tags;
 
+    @Column(columnDefinition = "TEXT")
+    private String url;
+
     private Double latitude;
     private Double longitude;
 
