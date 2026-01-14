@@ -25,6 +25,18 @@ public interface TripRepository extends JpaRepository<Trip, Long> {
     List<Trip> findByAuthor(User author);
 
     /**
+     * ✅ ดึงทริปทั้งหมดที่ผู้ใช้คนใดเป็นเจ้าของ เรียงตามวันที่สร้าง (ล่าสุดก่อน)
+     * ใช้ใน endpoint: GET /api/trips/mine
+     */
+    List<Trip> findByAuthorOrderByCreatedAtDesc(User author);
+
+    /**
+     * ✅ ดึงทริปทั้งหมดเรียงตามวันที่สร้าง (ล่าสุดก่อน)
+     * ใช้ใน endpoint: GET /api/trips
+     */
+    List<Trip> findAllByOrderByCreatedAtDesc();
+
+    /**
      * ✅ ค้นหาทริปด้วยคำค้น (keyword)
      * สามารถค้นหาได้จาก title, description และ tags[]
      *
@@ -41,6 +53,7 @@ public interface TripRepository extends JpaRepository<Trip, Long> {
                     FROM unnest(tags) AS tag
                     WHERE LOWER(tag) LIKE LOWER(CONCAT('%', :keyword, '%'))
                )
+            ORDER BY created_at DESC
             """,
         nativeQuery = true
     )

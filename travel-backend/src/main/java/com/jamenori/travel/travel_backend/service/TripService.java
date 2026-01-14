@@ -58,7 +58,7 @@ public class TripService {
         if (query != null && !query.isBlank()) {
             return tripRepository.searchTrips(query);
         }
-        return tripRepository.findAll();
+        return tripRepository.findAllByOrderByCreatedAtDesc();
     }
 
     /**
@@ -74,7 +74,7 @@ public class TripService {
      */
     public List<Trip> getMyTrips() {
         User currentUser = getCurrentUser();
-        return tripRepository.findByAuthor(currentUser);
+        return tripRepository.findByAuthorOrderByCreatedAtDesc(currentUser);
     }
 
     /**
