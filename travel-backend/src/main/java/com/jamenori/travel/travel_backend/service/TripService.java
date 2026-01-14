@@ -40,6 +40,7 @@ public class TripService {
                 // TripRequest = List<String>, Entity = String[]
                 .photos(request.photos() != null ? request.photos().toArray(new String[0]) : null)
                 .tags(request.tags() != null ? request.tags().toArray(new String[0]) : null)
+                .url(request.url())
                 .latitude(request.latitude())
                 .longitude(request.longitude())
                 .createdAt(Instant.now())
@@ -94,6 +95,7 @@ public class TripService {
         trip.setDescription(request.description());
         trip.setPhotos(request.photos() != null ? request.photos().toArray(new String[0]) : null);
         trip.setTags(request.tags() != null ? request.tags().toArray(new String[0]) : null);
+        trip.setUrl(request.url());
         trip.setLatitude(request.latitude());
         trip.setLongitude(request.longitude());
         trip.setUpdatedAt(Instant.now());

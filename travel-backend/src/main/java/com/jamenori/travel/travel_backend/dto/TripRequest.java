@@ -24,6 +24,8 @@ public record TripRequest(
         List<String> photos,     // optional
         List<String> tags,       // optional
 
+        String url,              // optional - external URL (e.g., Wongnai)
+
         @NotNull(message = "Latitude is required")
         Double latitude,
 
