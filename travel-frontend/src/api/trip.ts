@@ -8,6 +8,7 @@ export interface Trip {
   tags?: string[];
   latitude?: number;
   longitude?: number;
+  url?: string;
   author?: {
     id: number;
     email: string;
