@@ -1,49 +1,287 @@
 <template>
   <div class="landing-page">
-    <h1>Landing Page</h1>
-    <p>Router is working!</p>
-    <p>Pinia Store is ready!</p>
-    <div v-if="authStore.isAuthenticated" class="auth-info">
-      <p>Status: Logged in</p>
-      <p>Email: {{ authStore.user?.email }}</p>
-    </div>
-    <div v-else class="auth-info">
-      <p>Status: Not logged in</p>
-    </div>
+    <!-- Header Section -->
+    <header class="header">
+      <h1 class="main-title">เที่ยวไหนดี</h1>
+      <div class="search-container">
+        <div class="search-label">ค้นหาที่เที่ยว</div>
+        <input
+          v-model="searchQuery"
+          type="text"
+          class="search-input"
+          placeholder="หาที่เที่ยวแล้วไปกัน..."
+          @input="handleSearch"
+          @keydown="handleKeyDown"
+        />
+        <div class="search-separator"></div>
+      </div>
+    </header>
 
-    <!-- Test Component -->
-    <TestApiClient />
+    <!-- Main Content -->
+    <main class="landing-page__main">
+      <!-- Loading State -->
+      <div v-if="isLoading" class="landing-page__loading">
+        <div class="landing-page__spinner"></div>
+        <p>กำลังโหลดทริป...</p>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="error" class="landing-page__error">
+        <p>เกิดข้อผิดพลาด: {{ error }}</p>
+        <button @click="() => fetchTrips()" class="landing-page__retry-button">
+          ลองอีกครั้ง
+        </button>
+      </div>
+
+      <!-- Empty State -->
+      <div v-else-if="trips.length === 0" class="landing-page__empty">
+        <p>ไม่พบทริป</p>
+        <p v-if="searchQuery" class="landing-page__empty-hint">
+          ลองค้นหาด้วยคำอื่น
+        </p>
+      </div>
+
+      <!-- Trip List -->
+      <div v-else class="landing-page__trips">
+        <TripCard v-for="trip in trips" :key="trip.id" :trip="trip" />
+      </div>
+    </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useAuthStore } from "../stores/auth";
-import TestApiClient from "../components/TestApiClient.vue";
+import { ref, onMounted } from "vue";
+import { getAllTrips } from "../api/trip";
+import type { Trip } from "../api/trip";
+import TripCard from "../components/TripCard.vue";
 
-const authStore = useAuthStore();
+const trips = ref<Trip[]>([]);
+const isLoading = ref(false);
+const error = ref<string | null>(null);
+const searchQuery = ref("");
+
+// Debounce timer สำหรับ search
+let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Fetch trips from API
+ * ใช้ getAllTrips() จาก trip API และรองรับ query parameter สำหรับ search
+ */
+async function fetchTrips(query?: string) {
+  isLoading.value = true;
+  error.value = null;
+
+  try {
+    const data = await getAllTrips(query);
+    trips.value = data;
+  } catch (err: any) {
+    error.value =
+      err.response?.data?.message ||
+      err.message ||
+      "เกิดข้อผิดพลาดในการโหลดทริป";
+    console.error("Error fetching trips:", err);
+    trips.value = []; // Clear trips on error
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+/**
+ * Handle search input with debounce
+ * ใช้ debounce เพื่อลดจำนวน API calls เมื่อ user พิมพ์เร็ว
+ */
+function handleSearch() {
+  // Clear previous timeout
+  if (searchTimeout) {
+    clearTimeout(searchTimeout);
+  }
+
+  // Set new timeout (300ms delay)
+  searchTimeout = setTimeout(() => {
+    const query = searchQuery.value.trim();
+    fetchTrips(query || undefined);
+  }, 300);
+}
+
+/**
+ * Handle Enter key press
+ * เรียก search เมื่อกด Enter
+ */
+function handleKeyDown(e: KeyboardEvent) {
+  if (e.key === "Enter") {
+    e.preventDefault(); // ป้องกัน refresh หน้า
+    const query = searchQuery.value.trim();
+    fetchTrips(query || undefined);
+  }
+}
+
+// Fetch trips on mount
+onMounted(() => {
+  fetchTrips();
+});
 </script>
 
 <style scoped>
+@reference "tailwindcss";
+
+/* 
+ * Design System:
+ * - Brand Color: Ultra Violet
+ * - Soft Accent: Lavender
+ * - Background: #F9FAFB
+ * - Border: #E5E7EB
+ * - Text Primary: #1F2937
+ * - Text Secondary: #6B7280
+ * 
+ * Typography:
+ * - Title: Poppins / Prompt
+ * - Body: Inter / Kanit
+ */
+
+/* Landing Page Container */
 .landing-page {
-  padding: 2rem;
-  text-align: center;
+  @apply min-h-screen;
+  background: var(--color-surface-50); /* Cloud Lilac */
 }
 
-.landing-page h1 {
-  color: #1e40af;
-  margin-bottom: 1rem;
+/* Header Section */
+.header {
+  @apply text-center py-8 px-4 bg-white;
 }
 
-.landing-page p {
-  color: #666;
-  margin: 0.5rem 0;
+.main-title {
+  @apply mb-6 text-[var(--color-brand-600)];
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2.5rem;
+  line-height: 1.2;
 }
 
-.auth-info {
-  margin-top: 2rem;
-  padding: 1rem;
-  background: #f3f4f6;
-  border-radius: 8px;
-  display: inline-block;
+.search-container {
+  @apply flex flex-col items-center;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.search-label {
+  @apply mb-1 self-start;
+  color: #6b7280; /* Text Secondary */
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+.search-input {
+  @apply w-full py-1 px-4 border-0 rounded-none text-base outline-none bg-white text-center;
+  color: #1f2937; /* Text Primary */
+  font-family: var(--font-sans);
+}
+
+.search-input:focus {
+  @apply border-0;
+  outline: 2px solid var(--color-brand-500); /* Neon Orchid - active highlight */
+  outline-offset: 2px;
+}
+
+.search-input::placeholder {
+  color: #9ca3af;
+}
+
+.search-separator {
+  @apply w-full mt-1;
+  height: 1px;
+  background: #e5e7eb; /* Border */
+}
+
+/* Main Content */
+.landing-page__main {
+  @apply max-w-6xl mx-auto py-12 px-4;
+}
+
+/* Loading State */
+.landing-page__loading {
+  @apply text-center py-16 px-4;
+}
+
+.landing-page__spinner {
+  @apply w-12 h-12 rounded-full mx-auto mb-4;
+  border: 4px solid #e5e7eb;
+  border-top-color: var(--color-brand-600); /* Royal Violet */
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.landing-page__loading p {
+  @apply text-sm;
+  color: #6b7280; /* Text Secondary */
+  font-family: var(--font-sans);
+}
+
+/* Error State */
+.landing-page__error {
+  @apply text-center py-16 px-4;
+}
+
+.landing-page__error p {
+  @apply mb-4;
+  color: var(--color-signal-warm-500); /* Sunset Clay - error signal */
+  font-family: var(--font-sans);
+}
+
+.landing-page__retry-button {
+  @apply px-6 py-2 rounded-md text-sm font-medium cursor-pointer transition-colors duration-200 bg-[var(--color-brand-600)] text-white;
+  font-family: var(--font-sans);
+}
+
+.landing-page__retry-button:hover {
+  @apply bg-[var(--color-brand-800)]; /* Aubergine Ink */
+}
+
+/* Empty State */
+.landing-page__empty {
+  @apply text-center py-16 px-4;
+}
+
+.landing-page__empty p {
+  @apply mb-2;
+  color: #6b7280; /* Text Secondary */
+  font-family: var(--font-sans);
+  font-size: 1rem;
+}
+
+.landing-page__empty-hint {
+  @apply text-sm;
+  color: #9ca3af;
+  font-family: var(--font-sans);
+}
+
+/* Trip List */
+.landing-page__trips {
+  @apply flex flex-col gap-8;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .header {
+    @apply py-6 px-4;
+  }
+
+  .main-title {
+    @apply mb-4;
+    font-size: 1.875rem; /* 30px */
+  }
+
+  .landing-page__main {
+    @apply py-8 px-4;
+  }
+
+  .landing-page__trips {
+    @apply gap-6;
+  }
 }
 </style>
