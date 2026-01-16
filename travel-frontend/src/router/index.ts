@@ -10,6 +10,11 @@ const router = createRouter({
       // Lazy loading: โหลด component เมื่อ route ถูกเข้าถึงจริง เพื่อลด initial bundle size
       component: () => import("../views/LandingPage.vue"),
     },
+    {
+      path: "/register",
+      name: "register",
+      component: () => import("../views/RegisterPage.vue"),
+    },
     // Catch-all route ต้องอยู่ท้ายสุด เพื่อ match route ที่ไม่พบทั้งหมด
     {
       path: "/:pathMatch(.*)*",
