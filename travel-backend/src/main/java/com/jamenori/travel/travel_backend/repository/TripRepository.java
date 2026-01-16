@@ -25,15 +25,17 @@ public interface TripRepository extends JpaRepository<Trip, Long> {
     List<Trip> findByAuthor(User author);
 
     /**
-     * ✅ ดึงทริปทั้งหมดที่ผู้ใช้คนใดเป็นเจ้าของ เรียงตามวันที่สร้าง (ล่าสุดก่อน)
+     * ✅ ดึงทริปทั้งหมดที่ผู้ใช้คนใดเป็นเจ้าของ เรียงตามวันที่สร้าง (ล่าสุดก่อน) แล้วตามด้วย id (ใหม่สุดก่อน)
      * ใช้ใน endpoint: GET /api/trips/mine
      */
-    List<Trip> findByAuthorOrderByCreatedAtDesc(User author);
+    @Query("SELECT t FROM Trip t WHERE t.author = :author ORDER BY t.createdAt DESC, t.id DESC")
+    List<Trip> findByAuthorOrderByCreatedAtDesc(@Param("author") User author);
 
     /**
-     * ✅ ดึงทริปทั้งหมดเรียงตามวันที่สร้าง (ล่าสุดก่อน)
+     * ✅ ดึงทริปทั้งหมดเรียงตามวันที่สร้าง (ล่าสุดก่อน) แล้วตามด้วย id (ใหม่สุดก่อน)
      * ใช้ใน endpoint: GET /api/trips
      */
+    @Query("SELECT t FROM Trip t ORDER BY t.createdAt DESC, t.id DESC")
     List<Trip> findAllByOrderByCreatedAtDesc();
 
     /**
@@ -53,7 +55,7 @@ public interface TripRepository extends JpaRepository<Trip, Long> {
                     FROM unnest(tags) AS tag
                     WHERE LOWER(tag) LIKE LOWER(CONCAT('%', :keyword, '%'))
                )
-            ORDER BY created_at DESC
+            ORDER BY created_at DESC, id DESC
             """,
         nativeQuery = true
     )
