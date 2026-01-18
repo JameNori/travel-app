@@ -20,6 +20,16 @@ const router = createRouter({
       name: "login",
       component: () => import("../views/LoginPage.vue"),
     },
+    {
+      path: "/dashboard",
+      name: "dashboard",
+      component: () => import("../views/DashboardPage.vue"),
+    },
+    {
+      path: "/profile",
+      name: "profile",
+      component: () => import("../views/ProfilePage.vue"),
+    },
     // Catch-all route ต้องอยู่ท้ายสุด เพื่อ match route ที่ไม่พบทั้งหมด
     {
       path: "/:pathMatch(.*)*",
