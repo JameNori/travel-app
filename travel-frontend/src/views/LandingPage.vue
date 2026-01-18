@@ -4,16 +4,14 @@
     <header class="header">
       <h1 class="main-title">เที่ยวไหนดี</h1>
       <div class="search-container">
-        <div class="search-label">ค้นหาที่เที่ยว</div>
-        <input
+        <SearchBar
           v-model="searchQuery"
-          type="text"
-          class="search-input"
+          label="ค้นหาที่เที่ยว"
           placeholder="หาที่เที่ยวแล้วไปกัน..."
-          @input="handleSearch"
-          @keydown="handleKeyDown"
+          :loading="isLoading"
+          @search="handleSearchFromComponent"
+          @clear="handleClear"
         />
-        <div class="search-separator"></div>
       </div>
     </header>
 
@@ -54,14 +52,12 @@ import { ref, onMounted } from "vue";
 import { getAllTrips } from "../api/trip";
 import type { Trip } from "../api/trip";
 import TripCard from "../components/TripCard.vue";
+import SearchBar from "../components/SearchBar.vue";
 
 const trips = ref<Trip[]>([]);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 const searchQuery = ref("");
-
-// Debounce timer สำหรับ search
-let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * Fetch trips from API
@@ -87,32 +83,20 @@ async function fetchTrips(query?: string) {
 }
 
 /**
- * Handle search input with debounce
- * ใช้ debounce เพื่อลดจำนวน API calls เมื่อ user พิมพ์เร็ว
+ * Handle search from SearchBar component
+ * เรียกเมื่อ SearchBar emit search event (หลัง debounce หรือ Enter)
  */
-function handleSearch() {
-  // Clear previous timeout
-  if (searchTimeout) {
-    clearTimeout(searchTimeout);
-  }
-
-  // Set new timeout (300ms delay)
-  searchTimeout = setTimeout(() => {
-    const query = searchQuery.value.trim();
-    fetchTrips(query || undefined);
-  }, 300);
+function handleSearchFromComponent(query: string) {
+  fetchTrips(query || undefined);
 }
 
 /**
- * Handle Enter key press
- * เรียก search เมื่อกด Enter
+ * Handle clear button click from SearchBar
+ * Reset search and fetch all trips
  */
-function handleKeyDown(e: KeyboardEvent) {
-  if (e.key === "Enter") {
-    e.preventDefault(); // ป้องกัน refresh หน้า
-    const query = searchQuery.value.trim();
-    fetchTrips(query || undefined);
-  }
+function handleClear() {
+  searchQuery.value = "";
+  fetchTrips();
 }
 
 // Fetch trips on mount
@@ -161,36 +145,6 @@ onMounted(() => {
   @apply flex flex-col items-center;
   max-width: 1000px;
   margin: 0 auto;
-}
-
-.search-label {
-  @apply mb-1 self-start;
-  color: #6b7280; /* Text Secondary */
-  font-family: var(--font-sans);
-  font-size: 1rem;
-  font-weight: 400;
-}
-
-.search-input {
-  @apply w-full py-1 px-4 border-0 rounded-none text-base outline-none bg-white text-center;
-  color: #1f2937; /* Text Primary */
-  font-family: var(--font-sans);
-}
-
-.search-input:focus {
-  @apply border-0;
-  outline: 2px solid var(--color-brand-500); /* Neon Orchid - active highlight */
-  outline-offset: 2px;
-}
-
-.search-input::placeholder {
-  color: #9ca3af;
-}
-
-.search-separator {
-  @apply w-full mt-1;
-  height: 1px;
-  background: #e5e7eb; /* Border */
 }
 
 /* Main Content */
