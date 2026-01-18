@@ -2,7 +2,11 @@
   <div class="landing-page">
     <!-- Header Section -->
     <header class="header">
-      <h1 class="main-title">เที่ยวไหนดี</h1>
+      <div class="header-top">
+        <h1 class="main-title">เที่ยวไหนดี</h1>
+        <!-- UserMenu สำหรับทดสอบ -->
+        <UserMenu v-if="authStore.isAuthenticated" />
+      </div>
       <div class="search-container">
         <SearchBar
           v-model="searchQuery"
@@ -53,6 +57,10 @@ import { getAllTrips } from "../api/trip";
 import type { Trip } from "../api/trip";
 import TripCard from "../components/TripCard.vue";
 import SearchBar from "../components/SearchBar.vue";
+import UserMenu from "../components/UserMenu.vue";
+import { useAuthStore } from "../stores/auth";
+
+const authStore = useAuthStore();
 
 const trips = ref<Trip[]>([]);
 const isLoading = ref(false);
@@ -133,12 +141,21 @@ onMounted(() => {
   @apply text-center py-8 px-4 bg-white;
 }
 
+.header-top {
+  @apply flex justify-center items-center mb-6;
+  position: relative;
+}
+
 .main-title {
-  @apply mb-6 text-[var(--color-brand-600)];
+  @apply text-[var(--color-brand-600)];
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 2.5rem;
   line-height: 1.2;
+}
+
+.header-top :deep(.user-menu-wrapper) {
+  @apply absolute right-0;
 }
 
 .search-container {
@@ -225,9 +242,16 @@ onMounted(() => {
     @apply py-6 px-4;
   }
 
-  .main-title {
+  .header-top {
     @apply mb-4;
+  }
+
+  .main-title {
     font-size: 1.875rem; /* 30px */
+  }
+
+  .header-top :deep(.user-menu-wrapper) {
+    @apply static;
   }
 
   .landing-page__main {
