@@ -1,23 +1,14 @@
 <template>
   <div class="landing-page">
-    <!-- Header Section -->
-    <header class="header">
-      <div class="header-top">
-        <h1 class="main-title">เที่ยวไหนดี</h1>
-        <!-- UserMenu สำหรับทดสอบ -->
-        <UserMenu v-if="authStore.isAuthenticated" />
-      </div>
-      <div class="search-container">
-        <SearchBar
-          v-model="searchQuery"
-          label="ค้นหาที่เที่ยว"
-          placeholder="หาที่เที่ยวแล้วไปกัน..."
-          :loading="isLoading"
-          @search="handleSearchFromComponent"
-          @clear="handleClear"
-        />
-      </div>
-    </header>
+    <!-- Navbar -->
+    <Navbar
+      :show-search="true"
+      search-label="ค้นหาที่เที่ยว"
+      search-placeholder="หาที่เที่ยวแล้วไปกัน..."
+      :search-loading="isLoading"
+      @search="handleSearchFromComponent"
+      @search-clear="handleClear"
+    />
 
     <!-- Main Content -->
     <main class="landing-page__main">
@@ -56,11 +47,7 @@ import { ref, onMounted } from "vue";
 import { getAllTrips } from "../api/trip";
 import type { Trip } from "../api/trip";
 import TripCard from "../components/TripCard.vue";
-import SearchBar from "../components/SearchBar.vue";
-import UserMenu from "../components/UserMenu.vue";
-import { useAuthStore } from "../stores/auth";
-
-const authStore = useAuthStore();
+import Navbar from "../components/Navbar.vue";
 
 const trips = ref<Trip[]>([]);
 const isLoading = ref(false);
@@ -134,34 +121,6 @@ onMounted(() => {
 .landing-page {
   @apply min-h-screen;
   background: var(--color-surface-50); /* Cloud Lilac */
-}
-
-/* Header Section */
-.header {
-  @apply text-center py-8 px-4 bg-white;
-}
-
-.header-top {
-  @apply flex justify-center items-center mb-6;
-  position: relative;
-}
-
-.main-title {
-  @apply text-[var(--color-brand-600)];
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 2.5rem;
-  line-height: 1.2;
-}
-
-.header-top :deep(.user-menu-wrapper) {
-  @apply absolute right-0;
-}
-
-.search-container {
-  @apply flex flex-col items-center;
-  max-width: 1000px;
-  margin: 0 auto;
 }
 
 /* Main Content */
@@ -238,22 +197,6 @@ onMounted(() => {
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .header {
-    @apply py-6 px-4;
-  }
-
-  .header-top {
-    @apply mb-4;
-  }
-
-  .main-title {
-    font-size: 1.875rem; /* 30px */
-  }
-
-  .header-top :deep(.user-menu-wrapper) {
-    @apply static;
-  }
-
   .landing-page__main {
     @apply py-8 px-4;
   }
