@@ -1,48 +1,50 @@
 <template>
   <div class="searchbar-container">
-    <label v-if="label" class="searchbar-label" :for="inputId">
-      {{ label }}
-    </label>
-    <div class="searchbar-input-wrapper">
-      <input
-        :id="inputId"
-        v-model="localQuery"
-        type="text"
-        class="searchbar-input"
-        :placeholder="placeholder"
-        @input="handleInput"
-        @keydown="handleKeyDown"
-      />
-      <div class="searchbar-actions">
-        <!-- Loading Spinner -->
-        <div v-if="loading" class="searchbar-loading">
-          <div class="searchbar-spinner"></div>
-        </div>
-        <!-- Clear Button -->
-        <button
-          v-else-if="localQuery && showClearButton"
-          type="button"
-          class="searchbar-clear"
-          @click="handleClear"
-          aria-label="ล้างคำค้นหา"
-        >
-          <svg
-            class="searchbar-clear-icon"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
+    <div class="searchbar-wrapper">
+      <label v-if="label" class="searchbar-label" :for="inputId">
+        {{ label }}
+      </label>
+      <div class="searchbar-input-wrapper">
+        <input
+          :id="inputId"
+          v-model="localQuery"
+          type="text"
+          class="searchbar-input"
+          :placeholder="placeholder"
+          @input="handleInput"
+          @keydown="handleKeyDown"
+        />
+        <div class="searchbar-actions">
+          <!-- Loading Spinner -->
+          <div v-if="loading" class="searchbar-loading">
+            <div class="searchbar-spinner"></div>
+          </div>
+          <!-- Clear Button -->
+          <button
+            v-else-if="localQuery && showClearButton"
+            type="button"
+            class="searchbar-clear"
+            @click="handleClear"
+            aria-label="ล้างคำค้นหา"
           >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
+            <svg
+              class="searchbar-clear-icon"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+        <div class="searchbar-separator"></div>
       </div>
-      <div class="searchbar-separator"></div>
     </div>
   </div>
 </template>
@@ -155,19 +157,24 @@ function handleClear() {
  */
 
 .searchbar-container {
-  @apply flex flex-col items-center w-full;
+  @apply w-full;
+}
+
+.searchbar-wrapper {
+  @apply flex items-end gap-4;
 }
 
 .searchbar-label {
-  @apply mb-1 self-start;
+  @apply flex-shrink-0;
   color: #6b7280; /* Text Secondary */
   font-family: var(--font-sans);
   font-size: 1rem;
   font-weight: 400;
+  white-space: nowrap;
 }
 
 .searchbar-input-wrapper {
-  @apply w-full flex flex-col items-center relative;
+  @apply flex-1 flex flex-col items-center relative;
 }
 
 .searchbar-input {
@@ -247,6 +254,14 @@ function handleClear() {
 
 /* Responsive Design */
 @media (max-width: 768px) {
+  .searchbar-wrapper {
+    @apply flex-col items-start gap-2;
+  }
+
+  .searchbar-input-wrapper {
+    @apply w-full;
+  }
+
   .searchbar-input {
     @apply text-sm pr-9;
   }
