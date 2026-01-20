@@ -19,16 +19,12 @@
       <div class="card-details">
         <!-- Title -->
         <h2 class="card-title">
-          <a
-            v-if="trip.url"
-            :href="trip.url"
-            target="_blank"
-            rel="noopener noreferrer"
+          <router-link
+            :to="`/trips/${trip.id}`"
             class="title-link"
           >
             {{ trip.title }}
-          </a>
-          <span v-else class="title-link">{{ trip.title }}</span>
+          </router-link>
         </h2>
 
         <!-- Description -->
@@ -36,16 +32,12 @@
 
         <!-- Card Actions: Read More + Category Tags -->
         <div class="card-actions">
-          <a
-            v-if="trip.url"
-            :href="trip.url"
-            target="_blank"
-            rel="noopener noreferrer"
+          <router-link
+            :to="`/trips/${trip.id}`"
             class="read-more"
           >
             อ่านต่อ
-          </a>
-          <span v-else class="read-more read-more-disabled"> อ่านต่อ </span>
+          </router-link>
           <div v-if="trip.tags && trip.tags.length > 0" class="category-tags">
             <span
               v-for="(tag, index) in trip.tags"
@@ -216,10 +208,6 @@ function handleImageError(event: Event) {
   font-size: 0.9375rem;
 }
 
-.read-more-disabled {
-  @apply text-gray-400 cursor-not-allowed;
-  pointer-events: none;
-}
 
 /* Category Tags */
 .category-tags {
