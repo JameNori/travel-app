@@ -312,6 +312,8 @@ onUnmounted(() => {
 /* Desktop Navigation (When no search) */
 .navbar-desktop {
   @apply hidden md:flex items-center justify-end;
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
 .navbar-links {
