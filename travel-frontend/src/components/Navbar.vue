@@ -160,7 +160,7 @@ interface Props {
   searchLoading?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   showSearch: false,
   searchPlaceholder: "หาที่เที่ยวแล้วไปกัน...",
   searchLabel: "ค้นหาที่เที่ยว",
