@@ -30,6 +30,11 @@ const router = createRouter({
       name: "profile",
       component: () => import("../views/ProfilePage.vue"),
     },
+    {
+      path: "/trips/:id",
+      name: "trip-detail",
+      component: () => import("../views/TripDetailPage.vue"),
+    },
     // Catch-all route ต้องอยู่ท้ายสุด เพื่อ match route ที่ไม่พบทั้งหมด
     {
       path: "/:pathMatch(.*)*",
