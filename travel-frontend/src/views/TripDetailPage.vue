@@ -369,9 +369,21 @@ function formatDate(dateString: string): string {
 
 /**
  * Navigate back to previous page
+ * Falls back to home page if no history available or referrer is from external site
  */
 function goBack() {
-  router.back();
+  const referrer = document.referrer;
+  const currentOrigin = window.location.origin;
+  
+  // Check if referrer exists and is from the same origin (same app)
+  if (referrer && referrer.startsWith(currentOrigin)) {
+    // Referrer is from the same app, safe to go back
+    router.back();
+  } else {
+    // No referrer or referrer is from external site (e.g., Google)
+    // Fallback: go to home page
+    router.push('/');
+  }
 }
 
 // Fetch trip details on mount
