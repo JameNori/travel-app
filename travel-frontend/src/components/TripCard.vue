@@ -8,6 +8,8 @@
           :src="mainImage"
           :alt="trip.title"
           class="main-image"
+          loading="lazy"
+          decoding="async"
           @error="handleImageError"
         />
         <div v-else class="image-placeholder">
@@ -57,6 +59,8 @@
             :src="photo"
             :alt="`${trip.title} - Photo ${index + 2}`"
             class="thumbnail"
+            loading="lazy"
+            decoding="async"
             @error="handleImageError"
           />
         </div>
