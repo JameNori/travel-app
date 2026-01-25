@@ -78,10 +78,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
 
 const formData = ref({
@@ -170,8 +171,9 @@ async function handleSubmit() {
     // Call login API
     await authStore.login(formData.value.email.trim(), formData.value.password);
 
-    // Redirect to landing page after successful login
-    router.push("/");
+    // Redirect to intended route or landing page after successful login
+    const redirectPath = (route.query.redirect as string) || "/";
+    router.push(redirectPath);
   } catch (error: any) {
     // Handle error from backend
     const errorMessage =
