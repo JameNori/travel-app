@@ -22,7 +22,7 @@
         <!-- Title -->
         <h2 class="card-title">
           <router-link
-            :to="`/trips/${trip.id}`"
+            :to="detailLink"
             class="title-link"
           >
             {{ trip.title }}
@@ -32,14 +32,22 @@
         <!-- Description -->
         <p class="card-description">{{ truncatedDescription }}</p>
 
-        <!-- Card Actions: Read More + Category Tags -->
+        <!-- Card Actions: Read More / Meta + Category Tags -->
         <div class="card-actions">
+          <!-- Landing: แสดง "อ่านต่อ" | Dashboard: แสดง "สร้างเมื่อ" -->
           <router-link
-            :to="`/trips/${trip.id}`"
+            v-if="!showActions"
+            :to="detailLink"
             class="read-more"
           >
             อ่านต่อ
           </router-link>
+          <span v-else-if="showMeta && trip.createdAt" class="meta-date">
+            สร้างเมื่อ: {{ formatDate(trip.createdAt) }}
+          </span>
+          <span v-else class="spacer"></span>
+          
+          <!-- Tags อยู่ด้านขวาเสมอ -->
           <div v-if="trip.tags && trip.tags.length > 0" class="category-tags">
             <span
               v-for="(tag, index) in trip.tags"
@@ -51,18 +59,70 @@
           </div>
         </div>
 
-        <!-- Thumbnail Images -->
-        <div v-if="thumbnailImages.length > 0" class="thumbnail-images">
-          <img
-            v-for="(photo, index) in thumbnailImages"
-            :key="index"
-            :src="photo"
-            :alt="`${trip.title} - Photo ${index + 2}`"
-            class="thumbnail"
-            loading="lazy"
-            decoding="async"
-            @error="handleImageError"
-          />
+        <!-- Bottom Row: Thumbnails + Action Buttons -->
+        <div class="card-bottom-row">
+          <!-- Thumbnail Images -->
+          <div v-if="thumbnailImages.length > 0" class="thumbnail-images">
+            <img
+              v-for="(photo, index) in thumbnailImages"
+              :key="index"
+              :src="photo"
+              :alt="`${trip.title} - Photo ${index + 2}`"
+              class="thumbnail"
+              loading="lazy"
+              decoding="async"
+              @error="handleImageError"
+            />
+          </div>
+          <div v-else class="thumbnail-spacer"></div>
+
+          <!-- Action Buttons (for Dashboard) - มุมขวาล่าง -->
+          <div v-if="showActions" class="card-action-buttons">
+            <button
+              type="button"
+              class="action-button action-button--edit"
+              @click="handleEdit"
+              aria-label="แก้ไขทริป"
+            >
+              <svg
+                class="action-icon"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
+              </svg>
+              แก้ไข
+            </button>
+            <button
+              type="button"
+              class="action-button action-button--delete"
+              @click="handleDelete"
+              aria-label="ลบทริป"
+            >
+              <svg
+                class="action-icon"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+              ลบ
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -76,11 +136,24 @@ import type { Trip } from "../api/trip";
 interface Props {
   trip: Trip;
   hasShareIcon?: boolean;
+  showActions?: boolean;
+  showMeta?: boolean;
+  from?: string;
+  truncateLength?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   hasShareIcon: false,
+  showActions: false,
+  showMeta: false,
+  from: undefined,
+  truncateLength: 100,
 });
+
+const emit = defineEmits<{
+  edit: [trip: Trip];
+  delete: [trip: Trip];
+}>();
 
 // ใช้รูปแรกเป็น main image หรือ placeholder
 const mainImage = computed(() => {
@@ -90,17 +163,29 @@ const mainImage = computed(() => {
 });
 
 /**
- * จำกัดความยาวของ description ไม่เกิน 100 ตัวอักษร
+ * สร้าง detail link พร้อม query parameter
+ */
+const detailLink = computed(() => {
+  const basePath = `/trips/${props.trip.id}`;
+  if (props.from) {
+    return `${basePath}?from=${props.from}`;
+  }
+  return basePath;
+});
+
+/**
+ * จำกัดความยาวของ description
  * ใช้สำหรับแสดงข้อความสั้น 2-3 บรรทัด
  */
-function truncateDescription(text?: string, maxLength = 100): string {
+function truncateDescription(text?: string, maxLength?: number): string {
   if (!text) return "";
-  if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength) + "...";
+  const length = maxLength ?? props.truncateLength;
+  if (text.length <= length) return text;
+  return text.slice(0, length) + "...";
 }
 
 const truncatedDescription = computed(() => {
-  return truncateDescription(props.trip.description);
+  return truncateDescription(props.trip.description, props.truncateLength);
 });
 
 // ใช้รูปถัดไป (slice(1, 4)) เป็น thumbnails
@@ -110,6 +195,36 @@ const thumbnailImages = computed(() => {
   }
   return props.trip.photos.slice(1, 4);
 });
+
+/**
+ * Format date for display
+ */
+function formatDate(dateString: string): string {
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("th-TH", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  } catch {
+    return dateString;
+  }
+}
+
+/**
+ * Handle edit button click
+ */
+function handleEdit() {
+  emit("edit", props.trip);
+}
+
+/**
+ * Handle delete button click
+ */
+function handleDelete() {
+  emit("delete", props.trip);
+}
 
 // Handle image error (fallback to placeholder)
 function handleImageError(event: Event) {
@@ -144,11 +259,11 @@ function handleImageError(event: Event) {
 
 /* Main Image Container (Left Side) */
 .main-image-container {
-  @apply flex-shrink-0 w-[300px] overflow-hidden flex items-center justify-center;
+  @apply flex-shrink-0 w-[300px] h-[250px] overflow-hidden;
 }
 
 .main-image {
-  @apply w-full h-[250px] object-cover rounded-xl transition-transform duration-300;
+  @apply w-full h-full object-cover rounded-2xl transition-transform duration-300;
 }
 
 .trip-card:hover .main-image {
@@ -156,7 +271,7 @@ function handleImageError(event: Event) {
 }
 
 .image-placeholder {
-  @apply w-full h-[250px] flex items-center justify-center bg-gray-100;
+  @apply w-full h-full flex items-center justify-center bg-gray-100 rounded-2xl;
 }
 
 .placeholder-text {
@@ -165,7 +280,7 @@ function handleImageError(event: Event) {
 
 /* Card Details (Right Side) */
 .card-details {
-  @apply flex-1 p-6 flex flex-col;
+  @apply flex-1 pt-6 px-6 pb-4 flex flex-col;
 }
 
 /* Title */
@@ -189,7 +304,6 @@ function handleImageError(event: Event) {
   font-weight: 400;
   font-size: 0.9375rem;
   line-height: 1.6;
-  /* จำกัดความสูงเพื่อให้แสดง 2-3 บรรทัด */
   display: -webkit-box;
   -webkit-line-clamp: 3;
   line-clamp: 3;
@@ -210,6 +324,15 @@ function handleImageError(event: Event) {
   font-family: var(--font-sans);
   font-weight: 500;
   font-size: 0.9375rem;
+}
+
+.meta-date {
+  @apply text-sm text-gray-500 whitespace-nowrap;
+  font-family: var(--font-sans);
+}
+
+.spacer {
+  @apply flex-shrink-0;
 }
 
 
@@ -242,8 +365,17 @@ function handleImageError(event: Event) {
 }
 
 /* Thumbnail Images */
+/* Bottom Row: Thumbnails + Action Buttons */
+.card-bottom-row {
+  @apply flex justify-between items-end gap-4;
+}
+
 .thumbnail-images {
   @apply flex gap-3;
+}
+
+.thumbnail-spacer {
+  @apply flex-1;
 }
 
 .thumbnail {
@@ -254,6 +386,37 @@ function handleImageError(event: Event) {
   transform: scale(1.05);
 }
 
+/* Action Buttons (for Dashboard) */
+.card-action-buttons {
+  @apply flex gap-2 flex-shrink-0;
+}
+
+.action-button {
+  @apply flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-200;
+  font-family: var(--font-sans);
+}
+
+.action-button--edit {
+  background: var(--color-brand-600);
+  color: white;
+}
+
+.action-button--edit:hover {
+  background: var(--color-brand-800);
+}
+
+.action-button--delete {
+  @apply bg-red-50 text-red-600;
+}
+
+.action-button--delete:hover {
+  @apply bg-red-100;
+}
+
+.action-icon {
+  @apply w-4 h-4;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .card-content {
@@ -261,18 +424,30 @@ function handleImageError(event: Event) {
   }
 
   .main-image-container {
-    @apply w-full;
+    @apply w-full h-48;
   }
 
   .main-image {
-    @apply h-48;
+    @apply rounded-2xl;
+  }
+
+  .image-placeholder {
+    @apply rounded-2xl;
   }
 
   .card-details {
-    @apply p-4;
+    @apply pt-4 px-4 pb-3;
+  }
+
+  .card-bottom-row {
+    @apply flex-col items-stretch gap-3;
   }
 
   .thumbnail-images {
+    @apply justify-center;
+  }
+
+  .card-action-buttons {
     @apply justify-center;
   }
 }
