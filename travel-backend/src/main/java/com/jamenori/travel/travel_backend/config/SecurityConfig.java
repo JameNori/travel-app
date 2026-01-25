@@ -17,6 +17,11 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.firewall.HttpFirewall;
 import org.springframework.security.web.firewall.StrictHttpFirewall;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
 
 /**
  * SecurityConfig
@@ -49,6 +54,9 @@ public class SecurityConfig {
         http
             // ปิด CSRF เนื่องจากใช้ JWT แทน Cookie
             .csrf(csrf -> csrf.disable())
+
+            // ✅ เพิ่ม CORS configuration
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
             // ตั้งค่าให้ระบบทำงานแบบ Stateless (ไม่สร้าง session)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -108,6 +116,35 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
+    }
+
+    /**
+     * ✅ CORS Configuration Source
+     * กำหนด CORS settings สำหรับ Spring Security
+     * อนุญาตให้ frontend (localhost:5173) สามารถเรียก API ได้
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        
+        // อนุญาต origin จาก frontend
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://localhost:3000"));
+        
+        // อนุญาต HTTP methods
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        
+        // อนุญาต headers (รวมถึง Authorization สำหรับ JWT)
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        
+        // ✅ ต้องเป็น true เพื่อให้ส่ง Authorization header ได้
+        configuration.setAllowCredentials(true);
+        
+        // ตั้งค่า max age สำหรับ preflight request (1 ชั่วโมง)
+        configuration.setMaxAge(3600L);
+        
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     /**
