@@ -372,6 +372,16 @@ function formatDate(dateString: string): string {
  * Falls back to home page if no history available or referrer is from external site
  */
 function goBack() {
+  // ตรวจสอบ query parameter 'from' เพื่อดูว่ามาจากหน้าไหน
+  const from = route.query.from as string;
+  
+  // ถ้ามาจาก dashboard ให้กลับไปที่ dashboard
+  if (from === 'dashboard') {
+    router.push('/dashboard');
+    return;
+  }
+  
+  // Logic เดิมสำหรับกรณีอื่นๆ (landing page หรือ external site)
   const referrer = document.referrer;
   const currentOrigin = window.location.origin;
   
