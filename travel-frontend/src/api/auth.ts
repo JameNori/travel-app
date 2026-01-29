@@ -17,7 +17,7 @@ export interface ProfileResponse {
 export async function register(
   email: string,
   password: string,
-  displayName: string
+  displayName: string,
 ): Promise<AuthResponse> {
   const response = await api.post<AuthResponse>("/auth/register", {
     email,
@@ -32,7 +32,7 @@ export async function register(
  */
 export async function login(
   email: string,
-  password: string
+  password: string,
 ): Promise<AuthResponse> {
   const response = await api.post<AuthResponse>("/auth/login", {
     email,
@@ -56,4 +56,17 @@ export async function logout(): Promise<void> {
 export async function getProfile(): Promise<ProfileResponse> {
   const response = await api.get<ProfileResponse>("/auth/me");
   return response.data;
+}
+
+/**
+ * Change Password — เปลี่ยนรหัสผ่าน (ต้อง login แล้ว)
+ */
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  await api.put("/auth/change-password", {
+    currentPassword,
+    newPassword,
+  });
 }

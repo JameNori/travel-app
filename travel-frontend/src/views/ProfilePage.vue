@@ -33,7 +33,9 @@
             <div class="profile-avatar">
               <span class="avatar-initials">{{ userInitials }}</span>
             </div>
-            <h2 class="profile-display-name">{{ user.displayName || "ผู้ใช้" }}</h2>
+            <h2 class="profile-display-name">
+              {{ user.displayName || "ผู้ใช้" }}
+            </h2>
           </div>
 
           <!-- Profile Information -->
@@ -57,7 +59,9 @@
                 </svg>
                 ชื่อที่แสดง
               </div>
-              <div class="profile-info-value">{{ user.displayName || "ผู้ใช้" }}</div>
+              <div class="profile-info-value">
+                {{ user.displayName || "ผู้ใช้" }}
+              </div>
             </div>
 
             <!-- Email -->
@@ -107,6 +111,102 @@
             </div>
           </div>
 
+          <!-- Change Password Section -->
+          <div class="profile-change-password">
+            <h3 class="profile-change-password-title">เปลี่ยนรหัสผ่าน</h3>
+            <form
+              @submit.prevent="handleChangePasswordSubmit"
+              class="profile-change-password-form"
+            >
+              <div class="profile-form-group">
+                <label for="currentPassword" class="profile-form-label">
+                  รหัสผ่านปัจจุบัน
+                </label>
+                <input
+                  id="currentPassword"
+                  v-model="passwordForm.currentPassword"
+                  type="password"
+                  class="profile-form-input"
+                  :class="{
+                    'profile-form-input--error': passwordErrors.currentPassword,
+                  }"
+                  placeholder="กรุณากรอกรหัสผ่านปัจจุบัน"
+                  autocomplete="current-password"
+                  @blur="validateCurrentPassword"
+                  @input="clearPasswordError('currentPassword')"
+                />
+                <p
+                  v-if="passwordErrors.currentPassword"
+                  class="profile-form-error"
+                >
+                  {{ passwordErrors.currentPassword }}
+                </p>
+              </div>
+              <div class="profile-form-group">
+                <label for="newPassword" class="profile-form-label">
+                  รหัสผ่านใหม่
+                </label>
+                <input
+                  id="newPassword"
+                  v-model="passwordForm.newPassword"
+                  type="password"
+                  class="profile-form-input"
+                  :class="{
+                    'profile-form-input--error': passwordErrors.newPassword,
+                  }"
+                  placeholder="อย่างน้อย 8 ตัวอักษร"
+                  autocomplete="new-password"
+                  @blur="validateNewPassword"
+                  @input="clearPasswordError('newPassword')"
+                />
+                <p v-if="passwordErrors.newPassword" class="profile-form-error">
+                  {{ passwordErrors.newPassword }}
+                </p>
+              </div>
+              <div class="profile-form-group">
+                <label for="confirmPassword" class="profile-form-label">
+                  ยืนยันรหัสผ่าน
+                </label>
+                <input
+                  id="confirmPassword"
+                  v-model="passwordForm.confirmPassword"
+                  type="password"
+                  class="profile-form-input"
+                  :class="{
+                    'profile-form-input--error': passwordErrors.confirmPassword,
+                  }"
+                  placeholder="กรุณากรอกรหัสผ่านอีกครั้ง"
+                  autocomplete="new-password"
+                  @blur="validateConfirmPassword"
+                  @input="clearPasswordError('confirmPassword')"
+                />
+                <p
+                  v-if="passwordErrors.confirmPassword"
+                  class="profile-form-error"
+                >
+                  {{ passwordErrors.confirmPassword }}
+                </p>
+              </div>
+              <div v-if="passwordServerError" class="profile-form-server-error">
+                <p>{{ passwordServerError }}</p>
+              </div>
+              <div v-if="passwordSuccessMessage" class="profile-form-success">
+                <p>{{ passwordSuccessMessage }}</p>
+              </div>
+              <button
+                type="submit"
+                class="profile-change-password-button"
+                :disabled="!isPasswordFormValid || isPasswordSubmitting"
+              >
+                <span
+                  v-if="isPasswordSubmitting"
+                  class="profile-button-spinner"
+                ></span>
+                <span v-else>เปลี่ยนรหัสผ่าน</span>
+              </button>
+            </form>
+          </div>
+
           <!-- Action Buttons -->
           <!-- <div class="profile-actions">
             <router-link to="/dashboard" class="profile-action-button">
@@ -145,6 +245,17 @@ const isLoading = ref(false);
 const error = ref<string | null>(null);
 const tripCount = ref(0);
 
+// Change Password form
+const passwordForm = ref({
+  currentPassword: "",
+  newPassword: "",
+  confirmPassword: "",
+});
+const passwordErrors = ref<Record<string, string>>({});
+const passwordServerError = ref<string | null>(null);
+const passwordSuccessMessage = ref<string | null>(null);
+const isPasswordSubmitting = ref(false);
+
 // Get user from auth store
 const user = computed(() => authStore.user);
 
@@ -179,6 +290,107 @@ async function fetchProfileData() {
     console.error("Error fetching profile data:", err);
   } finally {
     isLoading.value = false;
+  }
+}
+
+// --- Change Password validation & submit ---
+function validateCurrentPassword() {
+  const v = passwordForm.value.currentPassword?.trim() ?? "";
+  if (!v) {
+    passwordErrors.value.currentPassword = "กรุณากรอกรหัสผ่านปัจจุบัน";
+    return;
+  }
+  delete passwordErrors.value.currentPassword;
+}
+
+function validateNewPassword() {
+  const v = passwordForm.value.newPassword ?? "";
+  if (!v) {
+    passwordErrors.value.newPassword = "กรุณากรอกรหัสผ่านใหม่";
+    return;
+  }
+  if (v.length < 8) {
+    passwordErrors.value.newPassword = "รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร";
+    return;
+  }
+  if (v.length > 100) {
+    passwordErrors.value.newPassword = "รหัสผ่านใหม่ต้องไม่เกิน 100 ตัวอักษร";
+    return;
+  }
+  delete passwordErrors.value.newPassword;
+  if (passwordForm.value.confirmPassword) validateConfirmPassword();
+}
+
+function validateConfirmPassword() {
+  const newP = passwordForm.value.newPassword ?? "";
+  const confirmP = passwordForm.value.confirmPassword ?? "";
+  if (!confirmP) {
+    passwordErrors.value.confirmPassword = "กรุณายืนยันรหัสผ่าน";
+    return;
+  }
+  if (newP !== confirmP) {
+    passwordErrors.value.confirmPassword = "รหัสผ่านไม่ตรงกัน";
+    return;
+  }
+  delete passwordErrors.value.confirmPassword;
+}
+
+function clearPasswordError(field: string) {
+  delete passwordErrors.value[field];
+  passwordServerError.value = null;
+}
+
+const isPasswordFormValid = computed(() => {
+  const p = passwordForm.value;
+  const cur = (p.currentPassword ?? "").trim();
+  const newP = p.newPassword ?? "";
+  const conf = p.confirmPassword ?? "";
+  if (!cur || !newP || !conf) return false;
+  if (newP.length < 8 || newP.length > 100) return false;
+  if (newP !== conf) return false;
+  return true;
+});
+
+async function handleChangePasswordSubmit() {
+  validateCurrentPassword();
+  validateNewPassword();
+  validateConfirmPassword();
+  if (Object.keys(passwordErrors.value).length > 0) return;
+
+  passwordServerError.value = null;
+  passwordSuccessMessage.value = null;
+  isPasswordSubmitting.value = true;
+
+  try {
+    await authStore.changePassword(
+      passwordForm.value.currentPassword.trim(),
+      passwordForm.value.newPassword,
+    );
+    passwordForm.value = {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    };
+    passwordSuccessMessage.value = "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว";
+  } catch (err: any) {
+    const data = err.response?.data;
+    const status = err.response?.status;
+    // Backend ส่งข้อความใน details (เช่น รหัสปัจจุบันผิด) ไม่ใช่ message
+    const details = data?.details;
+    const message = data?.message;
+
+    if (status === 401 || status === 403) {
+      passwordServerError.value =
+        "Session หมดอายุหรือไม่มีสิทธิ์ กรุณาเข้าสู่ระบบใหม่";
+    } else if (details || message) {
+      passwordServerError.value =
+        typeof details === "string" ? details : message || "";
+    } else {
+      passwordServerError.value =
+        err.message || "เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน";
+    }
+  } finally {
+    isPasswordSubmitting.value = false;
   }
 }
 
@@ -337,6 +549,92 @@ onMounted(() => {
 
 .profile-action-icon {
   @apply w-5 h-5;
+}
+
+/* Change Password Section */
+.profile-change-password {
+  @apply pt-8 mt-8 border-t border-gray-200;
+}
+
+.profile-change-password-title {
+  @apply text-lg font-semibold mb-4;
+  color: var(--color-brand-600);
+  font-family: var(--font-display);
+}
+
+.profile-change-password-form {
+  @apply space-y-4 max-w-md;
+}
+
+.profile-form-group {
+  @apply flex flex-col gap-1;
+}
+
+.profile-form-label {
+  @apply text-sm font-medium;
+  color: #374151;
+  font-family: var(--font-sans);
+}
+
+.profile-form-input {
+  @apply w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-900;
+  font-family: var(--font-sans);
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.profile-form-input:focus {
+  @apply outline-none;
+  border-color: var(--color-brand-600);
+  box-shadow: 0 0 0 3px rgba(95, 75, 139, 0.15);
+}
+
+.profile-form-input--error {
+  @apply border-red-500;
+}
+
+.profile-form-error {
+  @apply text-sm text-red-600;
+  font-family: var(--font-sans);
+}
+
+.profile-form-server-error {
+  @apply p-3 rounded-lg bg-red-50 border border-red-200;
+}
+
+.profile-form-server-error p {
+  @apply text-sm text-red-700;
+  font-family: var(--font-sans);
+}
+
+.profile-form-success {
+  @apply p-3 rounded-lg bg-green-50 border border-green-200;
+}
+
+.profile-form-success p {
+  @apply text-sm text-green-700;
+  font-family: var(--font-sans);
+}
+
+.profile-change-password-button {
+  @apply flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors duration-200;
+  background: var(--color-brand-600);
+  color: white;
+  font-family: var(--font-sans);
+}
+
+.profile-change-password-button:hover:not(:disabled) {
+  background: var(--color-brand-800);
+}
+
+.profile-change-password-button:disabled {
+  @apply opacity-60 cursor-not-allowed;
+}
+
+.profile-button-spinner {
+  @apply inline-block w-5 h-5 rounded-full border-2 border-white border-t-transparent;
+  animation: spin 0.8s linear infinite;
 }
 
 /* Responsive Design */
