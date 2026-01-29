@@ -3,14 +3,24 @@
     <div class="card-content">
       <!-- Main Image (Left Side) -->
       <div class="main-image-container">
+        <!-- Skeleton shown while image is loading -->
+        <div
+          v-if="mainImage && !mainImageLoaded"
+          class="main-image-skeleton"
+          aria-hidden="true"
+        >
+          <span class="main-image-skeleton__shimmer"></span>
+        </div>
         <img
           v-if="mainImage"
           :src="mainImage"
           :alt="trip.title"
           class="main-image"
+          :class="{ 'main-image--loaded': mainImageLoaded }"
           loading="lazy"
           decoding="async"
-          @error="handleImageError"
+          @load="onMainImageLoad"
+          @error="handleMainImageError"
         />
         <div v-else class="image-placeholder">
           <span class="placeholder-text">No Image</span>
@@ -21,10 +31,7 @@
       <div class="card-details">
         <!-- Title -->
         <h2 class="card-title">
-          <router-link
-            :to="detailLink"
-            class="title-link"
-          >
+          <router-link :to="detailLink" class="title-link">
             {{ trip.title }}
           </router-link>
         </h2>
@@ -35,18 +42,14 @@
         <!-- Card Actions: Read More / Meta + Category Tags -->
         <div class="card-actions">
           <!-- Landing: แสดง "อ่านต่อ" | Dashboard: แสดง "สร้างเมื่อ" -->
-          <router-link
-            v-if="!showActions"
-            :to="detailLink"
-            class="read-more"
-          >
+          <router-link v-if="!showActions" :to="detailLink" class="read-more">
             อ่านต่อ
           </router-link>
           <span v-else-if="showMeta && trip.createdAt" class="meta-date">
             สร้างเมื่อ: {{ formatDate(trip.createdAt) }}
           </span>
           <span v-else class="spacer"></span>
-          
+
           <!-- Tags อยู่ด้านขวาเสมอ -->
           <div v-if="trip.tags && trip.tags.length > 0" class="category-tags">
             <span
@@ -63,16 +66,29 @@
         <div class="card-bottom-row">
           <!-- Thumbnail Images -->
           <div v-if="thumbnailImages.length > 0" class="thumbnail-images">
-            <img
+            <div
               v-for="(photo, index) in thumbnailImages"
               :key="index"
-              :src="photo"
-              :alt="`${trip.title} - Photo ${index + 2}`"
-              class="thumbnail"
-              loading="lazy"
-              decoding="async"
-              @error="handleImageError"
-            />
+              class="thumbnail-cell"
+            >
+              <div
+                v-if="!thumbnailLoaded[index]"
+                class="thumbnail-skeleton"
+                aria-hidden="true"
+              >
+                <span class="thumbnail-skeleton__shimmer"></span>
+              </div>
+              <img
+                :src="photo"
+                :alt="`${trip.title} - Photo ${index + 2}`"
+                class="thumbnail"
+                :class="{ 'thumbnail--loaded': thumbnailLoaded[index] }"
+                loading="lazy"
+                decoding="async"
+                @load="onThumbnailLoad(index)"
+                @error="handleImageError"
+              />
+            </div>
           </div>
           <div v-else class="thumbnail-spacer"></div>
 
@@ -130,7 +146,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import type { Trip } from "../api/trip";
 
 interface Props {
@@ -161,6 +177,29 @@ const mainImage = computed(() => {
     ? props.trip.photos[0]
     : null;
 });
+
+// Loading state: แสดง skeleton จนกว่ารูปโหลดเสร็จ แล้ว fade-in
+const mainImageLoaded = ref(false);
+const thumbnailLoaded = ref<Record<number, boolean>>({});
+
+watch(mainImage, (url) => {
+  mainImageLoaded.value = false;
+  if (!url) return;
+});
+
+function onMainImageLoad() {
+  mainImageLoaded.value = true;
+}
+
+function handleMainImageError(event: Event) {
+  const img = event.target as HTMLImageElement;
+  img.style.display = "none";
+  mainImageLoaded.value = true; // hide skeleton
+}
+
+function onThumbnailLoad(index: number) {
+  thumbnailLoaded.value = { ...thumbnailLoaded.value, [index]: true };
+}
 
 /**
  * สร้าง detail link พร้อม query parameter
@@ -195,6 +234,14 @@ const thumbnailImages = computed(() => {
   }
   return props.trip.photos.slice(1, 4);
 });
+
+watch(
+  thumbnailImages,
+  () => {
+    thumbnailLoaded.value = {};
+  },
+  { deep: true },
+);
 
 /**
  * Format date for display
@@ -259,14 +306,45 @@ function handleImageError(event: Event) {
 
 /* Main Image Container (Left Side) */
 .main-image-container {
-  @apply flex-shrink-0 w-[300px] h-[250px] overflow-hidden;
+  @apply relative flex-shrink-0 w-[300px] h-[250px] overflow-hidden rounded-2xl bg-gray-100;
+}
+
+/* Skeleton while main image loads */
+.main-image-skeleton {
+  @apply absolute inset-0 z-[1] overflow-hidden rounded-2xl bg-gray-200;
+}
+
+.main-image-skeleton__shimmer {
+  @apply block w-full h-full;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.5) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .main-image {
-  @apply w-full h-full object-cover rounded-2xl transition-transform duration-300;
+  @apply absolute inset-0 z-[2] w-full h-full object-cover rounded-2xl transition-all duration-300;
+  opacity: 0;
 }
 
-.trip-card:hover .main-image {
+.main-image.main-image--loaded {
+  opacity: 1;
+}
+
+.trip-card:hover .main-image.main-image--loaded {
   transform: scale(1.02);
 }
 
@@ -335,7 +413,6 @@ function handleImageError(event: Event) {
   @apply flex-shrink-0;
 }
 
-
 /* Category Tags */
 .category-tags {
   @apply flex flex-wrap gap-2;
@@ -374,15 +451,40 @@ function handleImageError(event: Event) {
   @apply flex gap-3;
 }
 
+.thumbnail-cell {
+  @apply relative flex-shrink-0 w-20 h-20 overflow-hidden rounded-xl bg-gray-100;
+}
+
+.thumbnail-skeleton {
+  @apply absolute inset-0 z-[1] overflow-hidden rounded-xl bg-gray-200;
+}
+
+.thumbnail-skeleton__shimmer {
+  @apply block w-full h-full;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.5) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
 .thumbnail-spacer {
   @apply flex-1;
 }
 
 .thumbnail {
-  @apply w-20 h-20 object-cover rounded-xl transition-transform duration-200;
+  @apply absolute inset-0 z-[2] w-full h-full object-cover rounded-xl transition-all duration-200;
+  opacity: 0;
 }
 
-.thumbnail:hover {
+.thumbnail.thumbnail--loaded {
+  opacity: 1;
+}
+
+.thumbnail-cell:hover .thumbnail.thumbnail--loaded {
   transform: scale(1.05);
 }
 
