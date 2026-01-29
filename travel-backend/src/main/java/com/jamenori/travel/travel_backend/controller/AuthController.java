@@ -1,6 +1,7 @@
 package com.jamenori.travel.travel_backend.controller;
 
 import com.jamenori.travel.travel_backend.dto.AuthResponse;
+import com.jamenori.travel.travel_backend.dto.ChangePasswordRequest;
 import com.jamenori.travel.travel_backend.dto.LoginRequest;
 import com.jamenori.travel.travel_backend.dto.RegisterRequest;
 import com.jamenori.travel.travel_backend.service.AuthService;
@@ -56,6 +57,22 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout() {
         authService.logout(); // ทำงานเปล่า (placeholder)
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * ✅ Change Password — เปลี่ยนรหัสผ่าน (ต้อง login แล้ว)
+     * รับ currentPassword + newPassword จาก body, ดึง email จาก JWT
+     */
+    @PutMapping("/change-password")
+    public ResponseEntity<Void> changePassword(
+            @RequestBody ChangePasswordRequest request,
+            Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
+        String email = authentication.getName();
+        authService.changePassword(email, request);
         return ResponseEntity.ok().build();
     }
 

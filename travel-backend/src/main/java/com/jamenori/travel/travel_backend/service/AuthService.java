@@ -1,6 +1,7 @@
 package com.jamenori.travel.travel_backend.service;
 
 import com.jamenori.travel.travel_backend.dto.AuthResponse;
+import com.jamenori.travel.travel_backend.dto.ChangePasswordRequest;
 import com.jamenori.travel.travel_backend.dto.LoginRequest;
 import com.jamenori.travel.travel_backend.dto.RegisterRequest;
 import com.jamenori.travel.travel_backend.entity.User;
@@ -122,5 +123,31 @@ public class AuthService {
     public void logout() {
         // JWT เป็น stateless → ฝั่ง server ไม่ต้องทำอะไรเป็นพิเศษ
         // ให้ frontend ทำการลบ token ทิ้งก็พอ
+    }
+
+    /**
+     * ✅ Change Password — เปลี่ยนรหัสผ่าน (ผู้ใช้ต้อง login แล้ว)
+     * 1. ตรวจสอบรหัสปัจจุบันกับ passwordHash ใน DB
+     * 2. ตรวจความยาวรหัสใหม่ (อย่างน้อย 8 ตัว)
+     * 3. เข้ารหัสรหัสใหม่และบันทึก
+     */
+    public void changePassword(String email, ChangePasswordRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+            throw new IllegalArgumentException("รหัสผ่านปัจจุบันไม่ถูกต้อง");
+        }
+
+        String newPassword = request.getNewPassword();
+        if (newPassword == null || newPassword.length() < 8) {
+            throw new IllegalArgumentException("รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร");
+        }
+        if (newPassword.length() > 100) {
+            throw new IllegalArgumentException("รหัสผ่านใหม่ต้องไม่เกิน 100 ตัวอักษร");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
     }
 }
