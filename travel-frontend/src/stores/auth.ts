@@ -7,7 +7,7 @@ export const useAuthStore = defineStore("auth", () => {
   const token = ref<string | null>(localStorage.getItem("token"));
   // ใช้ "null" string เป็น fallback เพื่อป้องกัน JSON.parse error เมื่อ localStorage ว่าง
   const user = ref<any | null>(
-    JSON.parse(localStorage.getItem("user") || "null")
+    JSON.parse(localStorage.getItem("user") || "null"),
   );
   // sync isAuthenticated กับ token เพื่อให้ reactive และไม่ต้อง check token.value ทุกครั้ง
   const isAuthenticated = ref<boolean>(!!token.value);
@@ -41,7 +41,7 @@ export const useAuthStore = defineStore("auth", () => {
   async function register(
     email: string,
     password: string,
-    displayName: string
+    displayName: string,
   ) {
     try {
       const response = await authAPI.register(email, password, displayName);
@@ -80,6 +80,13 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   /**
+   * Change Password — เปลี่ยนรหัสผ่าน (ต้อง login แล้ว)
+   */
+  async function changePassword(currentPassword: string, newPassword: string) {
+    await authAPI.changePassword(currentPassword, newPassword);
+  }
+
+  /**
    * Fetch Profile — ดึงข้อมูลผู้ใช้ปัจจุบันจาก JWT
    * ใช้ตรวจสอบว่า token ยัง valid หรือไม่ และอัปเดต user info
    */
@@ -108,6 +115,7 @@ export const useAuthStore = defineStore("auth", () => {
     login,
     register,
     logout,
+    changePassword,
     fetchProfile,
   };
 });
