@@ -29,7 +29,10 @@
         <!-- Title Section -->
         <header class="trip-detail-content__header">
           <h1 class="trip-detail-content__title">{{ trip.title }}</h1>
-          <div v-if="trip.tags && trip.tags.length > 0" class="trip-detail-content__tags">
+          <div
+            v-if="trip.tags && trip.tags.length > 0"
+            class="trip-detail-content__tags"
+          >
             <span
               v-for="(tag, index) in trip.tags"
               :key="index"
@@ -41,7 +44,10 @@
         </header>
 
         <!-- Main Image Gallery -->
-        <div v-if="trip.photos && trip.photos.length > 0" class="trip-detail-content__gallery">
+        <div
+          v-if="trip.photos && trip.photos.length > 0"
+          class="trip-detail-content__gallery"
+        >
           <div class="trip-detail-content__main-image">
             <img
               :src="mainImageUrl || trip.photos[0]"
@@ -50,14 +56,21 @@
               @error="handleImageError"
             />
           </div>
-          <div v-if="trip.photos.length > 1" class="trip-detail-content__thumbnail-section">
+          <div
+            v-if="trip.photos.length > 1"
+            class="trip-detail-content__thumbnail-section"
+          >
             <div class="trip-detail-content__thumbnail-grid">
               <!-- Thumbnail รูปแรก (รูปที่ 1) -->
               <img
                 :src="trip.photos![0]!"
                 :alt="`${trip.title} - Photo 1`"
                 class="thumbnail-image"
-                :class="{ 'thumbnail-image--active': isMainImageActive(trip.photos![0]!) }"
+                :class="{
+                  'thumbnail-image--active': isMainImageActive(
+                    trip.photos![0]!,
+                  ),
+                }"
                 @error="handleImageError"
                 @click="handleThumbnailClick(trip.photos![0]!)"
               />
@@ -108,44 +121,13 @@
           </p>
         </section>
 
-        <!-- Map Section -->
-        <section v-if="trip.latitude && trip.longitude" class="trip-detail-content__map">
+        <!-- Map Section (Leaflet + OpenStreetMap embed) -->
+        <section
+          v-if="trip.latitude && trip.longitude"
+          class="trip-detail-content__map"
+        >
           <h2 class="section-title">ตำแหน่งที่ตั้ง</h2>
-          <div class="map-container">
-            <a
-              :href="mapUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="map-link"
-            >
-              <div class="map-placeholder">
-                <svg
-                  class="map-icon"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                  />
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-                <p class="map-placeholder-text">คลิกเพื่อดูแผนที่</p>
-                <p class="map-coordinates">
-                  {{ trip.latitude }}, {{ trip.longitude }}
-                </p>
-              </div>
-            </a>
-          </div>
+          <MapEmbed :latitude="trip.latitude" :longitude="trip.longitude" />
         </section>
 
         <!-- Author & Metadata Section -->
@@ -196,6 +178,7 @@ import { useRoute, useRouter } from "vue-router";
 import { getTripById } from "../api/trip";
 import type { Trip } from "../api/trip";
 import Navbar from "../components/Navbar.vue";
+import MapEmbed from "../components/MapEmbed.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -233,14 +216,6 @@ const tripId = computed(() => {
     return parseInt(id, 10);
   }
   return null;
-});
-
-/**
- * Generate Google Maps URL for the location
- */
-const mapUrl = computed(() => {
-  if (!trip.value?.latitude || !trip.value?.longitude) return "";
-  return `https://www.google.com/maps?q=${trip.value.latitude},${trip.value.longitude}`;
 });
 
 /**
@@ -374,17 +349,17 @@ function formatDate(dateString: string): string {
 function goBack() {
   // ตรวจสอบ query parameter 'from' เพื่อดูว่ามาจากหน้าไหน
   const from = route.query.from as string;
-  
+
   // ถ้ามาจาก dashboard ให้กลับไปที่ dashboard
-  if (from === 'dashboard') {
-    router.push('/dashboard');
+  if (from === "dashboard") {
+    router.push("/dashboard");
     return;
   }
-  
+
   // Logic เดิมสำหรับกรณีอื่นๆ (landing page หรือ external site)
   const referrer = document.referrer;
   const currentOrigin = window.location.origin;
-  
+
   // Check if referrer exists and is from the same origin (same app)
   if (referrer && referrer.startsWith(currentOrigin)) {
     // Referrer is from the same app, safe to go back
@@ -392,7 +367,7 @@ function goBack() {
   } else {
     // No referrer or referrer is from external site (e.g., Google)
     // Fallback: go to home page
-    router.push('/');
+    router.push("/");
   }
 }
 
@@ -598,39 +573,6 @@ onMounted(() => {
 /* Map Section */
 .trip-detail-content__map {
   @apply mb-6;
-}
-
-.map-container {
-  @apply w-full rounded-xl overflow-hidden;
-}
-
-.map-link {
-  @apply block no-underline;
-}
-
-.map-placeholder {
-  @apply w-full h-64 flex flex-col items-center justify-center bg-gray-100 cursor-pointer transition-colors duration-200;
-}
-
-.map-placeholder:hover {
-  @apply bg-gray-200;
-}
-
-.map-icon {
-  @apply w-12 h-12 mb-2;
-  color: var(--color-brand-600); /* Royal Violet */
-}
-
-.map-placeholder-text {
-  @apply text-sm font-medium mb-1;
-  color: var(--color-brand-600); /* Royal Violet */
-  font-family: var(--font-sans);
-}
-
-.map-coordinates {
-  @apply text-xs;
-  color: #6b7280; /* Text Secondary */
-  font-family: var(--font-sans);
 }
 
 /* Metadata Section */
